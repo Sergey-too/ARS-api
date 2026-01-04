@@ -1,5 +1,7 @@
 package com.example.backend;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,14 +24,9 @@ public class Crop {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
     
-    // УДАЛИТЕ ВСЕ ССЫЛКИ НА СТАРОЕ ПОЛЕ category (String)
-    // ЭТОГО НЕ ДОЛЖНО БЫТЬ:
-    // @Column(name = "category", length = 50)
-    // private String category;
-    
-    // ТОЛЬКО ЭТА СВЯЗЬ:
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id") // колонка в БД
+    @JsonBackReference
     private Category category;
     
     @Column(name = "description", length = 500)
