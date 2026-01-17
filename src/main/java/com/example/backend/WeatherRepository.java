@@ -21,4 +21,4 @@ public interface WeatherRepository extends JpaRepository<Weather, Integer> {
     @Query("SELECT w FROM Weather w WHERE w.regionId = :regionId AND w.date = :date")
     Weather findByRegionIdAndDate(@Param("regionId") Integer regionId, 
                                  @Param("date") LocalDate date);
-}
+} 

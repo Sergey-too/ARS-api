@@ -141,7 +141,7 @@
             }
         }
 
-        // 4. Получить растение по ID (ОБЯЗАТЕЛЬНО ДОБАВЬТЕ!)
+        // 4. Получить растение по ID 
         @GetMapping("/{id}")
         public ResponseEntity<Crop> getCropById(@PathVariable Integer id) {
             System.out.println("=== GET /api/crops/" + id + " ===");

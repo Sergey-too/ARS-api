@@ -8,11 +8,13 @@ import java.util.Map;
 import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -118,48 +120,72 @@ public class WeatherController {
         return response;
     }
     
-    // 5. Инициализировать тестовые данные
-    @GetMapping("/init-test-data")
-    public Map<String, Object> initTestData() {
+    //5. Получить ВСЕ данные по региону для админки
+    @GetMapping("/admin/all/{regionName}")
+    public Map<String, Object> getAllWeatherForRegion(@PathVariable String regionName) {
+        Map<String, Object> response = new HashMap<>();
+        
+        Region region = regionRepository.findByName(regionName);
+        if (region == null) {
+            response.put("error", "Регион не найден");
+            return response;
+        }
+        
+        // Получаем ВСЕ данные по региону (без ограничения в 6 дней)
+        List<Weather> weatherData = weatherRepository.findByRegionId(region.getId());
+        
+        response.put("region", region.getName());
+        response.put("weather", convertToAndroidFormat(weatherData));
+        response.put("count", weatherData.size());
+        response.put("isTestData", false);
+        response.put("message", "Все данные по региону");
+        
+        return response;
+    }
+
+    // Удалить данные по дате и региону
+    @DeleteMapping("/delete-by-date-region")
+    public Map<String, Object> deleteWeatherByDateAndRegion(
+            @RequestParam String date,
+            @RequestParam String regionName) {
+        
         Map<String, Object> response = new HashMap<>();
         
         try {
-            // Создаем регионы Беларуси
-            String[] regions = {
-                "Минск, Минская область",
-                "Брестская область",
-                "Витебская область",
-                "Гомельская область",
-                "Гродненская область",
-                "Могилевская область"
-            };
-            
-            List<Region> savedRegions = new ArrayList<>();
-            for (String regionName : regions) {
-                if (regionRepository.findByName(regionName) == null) {
-                    Region region = new Region(regionName);
-                    savedRegions.add(regionRepository.save(region));
-                }
+            // Находим регион
+            Region region = regionRepository.findByName(regionName);
+            if (region == null) {
+                response.put("success", false);
+                response.put("error", "Регион не найден");
+                return response;
             }
             
-            // Создаем тестовые данные погоды для каждого региона
-            for (Region region : savedRegions) {
-                List<Weather> testWeather = generateTestWeather(region.getId());
-                weatherRepository.saveAll(testWeather);
+            // Парсим дату
+            LocalDate localDate = LocalDate.parse(date);
+            
+            // Находим и удаляем запись
+            Weather weather = weatherRepository.findByRegionIdAndDate(region.getId(), localDate);
+            if (weather == null) {
+                response.put("success", false);
+                response.put("error", "Данные за указанную дату не найдены");
+                return response;
             }
             
-            response.put("status", "success");
-            response.put("message", "Тестовые данные созданы");
-            response.put("regions", savedRegions.size());
+            weatherRepository.delete(weather);
+            
+            response.put("success", true);
+            response.put("message", "Данные успешно удалены");
+            response.put("deletedId", weather.getId());
+            response.put("date", date);
+            response.put("region", regionName);
             
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", e.getMessage());
+            response.put("success", false);
+            response.put("error", "Ошибка удаления: " + e.getMessage());
         }
         
         return response;
     }
-    
     // Вспомогательные методы
     
     private List<Weather> generateTestWeather(Integer regionId) {

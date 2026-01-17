@@ -1,6 +1,7 @@
 package com.example.backend;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,9 +25,9 @@ public class Crop {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
     
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "category_id") // колонка в БД
-    @JsonBackReference
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    @JsonIgnore // Полностью игнорируем при сериализации
     private Category category;
     
     @Column(name = "description", length = 500)
@@ -68,22 +69,30 @@ public class Crop {
     @Column(name = "photo_path", length = 255)
     private String photoPath;
     
-    // Геттеры и сеттеры
+    // Геттер для названия категории (для Android)
+    @JsonProperty("category") // Это поле будет в JSON как "category"
+    @Transient // Не сохраняется в БД
+    public String getCategoryName() {
+        return category != null ? category.getName() : null;
+    }
+    
+    // Сеттер для названия категории (для приема данных от Android)
+    @Transient
+    public void setCategory(String categoryName) {
+        // Этот сеттер нужен только для приема данных
+        // Фактическая связь устанавливается в контроллере
+    }
+    
+    // Стандартные геттеры и сеттеры
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     
-    // ТОЛЬКО ЭТИ ГЕТТЕРЫ ДЛЯ Category:
+    // Только для внутреннего использования в Spring
     public Category getCategory() { return category; }
     public void setCategory(Category category) { this.category = category; }
-    
-    // Удобный геттер для названия категории (не для БД)
-    @Transient
-    public String getCategoryName() {
-        return category != null ? category.getName() : null;
-    }
     
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
