@@ -95,16 +95,22 @@ public class CropController {
         List<Crop> crops = cropRepository.findAll();
         return ResponseEntity.ok(crops);
     }
-    
-    // // 5. Получить растение по ID
-    // @GetMapping("/crops/{id}")
-    // public ResponseEntity<Crop> getCropById(@PathVariable Integer id) {
-    //     return cropRepository.findById(id)
-    //             .map(ResponseEntity::ok)
-    //             .orElse(ResponseEntity.notFound().build());
-    // }
-    
-    // 6. Обновить растение
+    // 5. Получить растение по ID
+    @GetMapping("/crops/{id}")
+    public ResponseEntity<Crop> getCropById(@PathVariable Integer id) {
+        try {
+            Crop crop = cropRepository.findById(id).orElse(null);
+            if (crop == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(crop);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // 5. Обновить растение
     @PutMapping("/crops/{id}")
     public ResponseEntity<Crop> updateCrop(@PathVariable Integer id, 
                                            @RequestBody CropRequest cropRequest) {
@@ -154,7 +160,7 @@ public class CropController {
         }
     }
     
-    // 7. Удалить растение
+    // 6. Удалить растение
     @DeleteMapping("/crops/{id}")
     public ResponseEntity<Void> deleteCrop(@PathVariable Integer id) {
         try {
@@ -169,7 +175,7 @@ public class CropController {
         }
     }
     
-    // 8. Тест
+    // 7. Тест
     @GetMapping("/test")
     public String test() {
         return "API работает!";

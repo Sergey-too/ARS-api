@@ -1,5 +1,7 @@
     package com.example.backend;
 
+    import java.io.File;
+    import java.nio.file.Files;
     import java.util.HashMap;
     import java.util.List;
     import java.util.Map;
@@ -141,13 +143,24 @@
             }
         }
 
-        // 4. Получить растение по ID 
-        @GetMapping("/{id}")
-        public ResponseEntity<Crop> getCropById(@PathVariable Integer id) {
-            System.out.println("=== GET /api/crops/" + id + " ===");
+         @GetMapping("/img/{filename:.+}")
+        public ResponseEntity<byte[]> getImage(@PathVariable String filename) throws Exception {
+            System.out.println("=== GET IMAGE: " + filename + " ===");
             
-            return cropRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            // Путь к файлу
+            String filePath = "uploads/" + filename;
+            System.out.println("Looking for file: " + new File(filePath).getAbsolutePath());
+            
+            File file = new File(filePath);
+            if (file.exists()) {
+                System.out.println("✓ File FOUND, size: " + file.length() + " bytes");
+                byte[] imageBytes = Files.readAllBytes(file.toPath());
+                return ResponseEntity.ok()
+                        .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                        .body(imageBytes);
+            } else {
+                System.out.println("✗ File NOT found at: " + file.getAbsolutePath());
+                return ResponseEntity.notFound().build();
+            }
         }
     }

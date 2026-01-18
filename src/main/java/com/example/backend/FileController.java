@@ -1,5 +1,6 @@
 package com.example.backend;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,11 +23,54 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/files")
 @CrossOrigin(origins = "*")
 public class FileController {
     
+    @GetMapping("/public/{filename:.+}")
+    @ResponseBody
+    @CrossOrigin(origins = "*")
+    public ResponseEntity<Resource> getPublicFile(@PathVariable String filename, 
+                                                HttpServletRequest request) {
+        
+        System.out.println("=== GET PUBLIC FILE METHOD CALLED ===");
+        System.out.println("Request URI: " + request.getRequestURI());
+        System.out.println("Filename parameter: " + filename);
+        System.out.println("Upload dir: " + uploadDir);
+        
+        try {
+            Path path = Paths.get(uploadDir).resolve(filename);
+            System.out.println("Full path: " + path.toAbsolutePath());
+            System.out.println("File exists: " + Files.exists(path));
+            
+            Resource resource = new UrlResource(path.toUri());
+            
+            if (resource.exists() || resource.isReadable()) {
+                System.out.println("Resource exists, serving...");
+                String contentType = Files.probeContentType(path);
+                if (contentType == null) {
+                    contentType = "application/octet-stream";
+                }
+                
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, 
+                                "inline; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                System.out.println("Resource NOT found or not readable");
+                return ResponseEntity.notFound().build();
+            }
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
     
@@ -128,6 +172,67 @@ public class FileController {
             }
         } catch (IOException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/test")
+    public String test() {
+        return "FileController is working!";
+    }
+
+    @GetMapping("/img/{filename:.+}")
+    @ResponseBody
+    @CrossOrigin("*")
+    public ResponseEntity<byte[]> getImageFile(@PathVariable String filename) {
+        try {
+            System.out.println("=== FileController.getImageFile: " + filename + " ===");
+            
+            // Пробуем разные пути
+            String[] testPaths = {
+                "uploads/crops/" + filename,
+                "uploads/" + filename,
+                filename
+            };
+            
+            File foundFile = null;
+            
+            for (String path : testPaths) {
+                File file = new File(path);
+                System.out.println("Testing: " + file.getAbsolutePath() + 
+                                " - exists: " + file.exists());
+                
+                if (file.exists() && file.isFile()) {
+                    foundFile = file;
+                    break;
+                }
+            }
+            
+            if (foundFile == null) {
+                System.out.println("File not found: " + filename);
+                return ResponseEntity.notFound().build();
+            }
+            
+            System.out.println("Found file: " + foundFile.getAbsolutePath());
+            byte[] imageBytes = java.nio.file.Files.readAllBytes(foundFile.toPath());
+            
+            // Определяем Content-Type
+            String contentType = "image/jpeg";
+            String fileName = foundFile.getName().toLowerCase();
+            if (fileName.endsWith(".png")) {
+                contentType = "image/png";
+            } else if (fileName.endsWith(".gif")) {
+                contentType = "image/gif";
+            }
+            
+            return ResponseEntity.ok()
+                    .contentType(MediaType.valueOf(contentType))
+                    .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(imageBytes.length))
+                    .header(HttpHeaders.CACHE_CONTROL, "max-age=86400")
+                    .body(imageBytes);
+            
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+            return ResponseEntity.status(500).build();
         }
     }
 }
