@@ -5,6 +5,7 @@
     import java.util.HashMap;
     import java.util.List;
     import java.util.Map;
+    import java.util.Optional;
 
     import org.springframework.beans.factory.annotation.Autowired;
     import org.springframework.http.ResponseEntity;
@@ -109,7 +110,7 @@
         }
         
         // 3. Удалить растение у пользователя
-        @DeleteMapping("/user/{userId}/{cropId}")
+            @DeleteMapping("/user/{userId}/{cropId}")
         public ResponseEntity<Map<String, Object>> deleteUserCrop(
                 @PathVariable Integer userId, 
                 @PathVariable Integer cropId) {
@@ -117,33 +118,35 @@
             Map<String, Object> response = new HashMap<>();
             
             try {
-                // Проверяем существует ли запись
+                // Находим запись для удаления
                 List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
-                boolean exists = userCrops.stream()
-                    .anyMatch(uc -> uc.getCropId().equals(cropId));
+                Optional<UserCrop> userCropToDelete = userCrops.stream()
+                    .filter(uc -> uc.getCropId().equals(cropId))
+                    .findFirst();
                 
-                if (!exists) {
+                if (!userCropToDelete.isPresent()) {
                     response.put("success", false);
-                    response.put("error", "Запись не найдена");
+                    response.put("error", "Растение не найдено в вашей коллекции");
                     return ResponseEntity.badRequest().body(response);
                 }
                 
-                // Удаляем
-                userCropRepository.deleteByUserIdAndCropId(userId, cropId);
+                // Удаляем запись
+                userCropRepository.delete(userCropToDelete.get());
                 
                 response.put("success", true);
-                response.put("message", "Растение удалено из коллекции");
+                response.put("message", "Растение успешно удалено из коллекции");
                 
                 return ResponseEntity.ok(response);
                 
             } catch (Exception e) {
+                e.printStackTrace();
                 response.put("success", false);
                 response.put("error", "Ошибка при удалении: " + e.getMessage());
-                return ResponseEntity.badRequest().body(response);
+                return ResponseEntity.internalServerError().body(response);
             }
         }
 
-         @GetMapping("/img/{filename:.+}")
+        @GetMapping("/img/{filename:.+}")
         public ResponseEntity<byte[]> getImage(@PathVariable String filename) throws Exception {
             System.out.println("=== GET IMAGE: " + filename + " ===");
             
@@ -163,4 +166,42 @@
                 return ResponseEntity.notFound().build();
             }
         }
-    }
+        @DeleteMapping("/user/all/{userId}")
+        public ResponseEntity<Map<String, Object>> deleteAllUserCrops(@PathVariable Integer userId) {
+            Map<String, Object> response = new HashMap<>();
+        
+            try {
+                System.out.println("Запрос на удаление ВСЕХ растений для пользователя: " + userId);
+                
+                // Получаем все растения пользователя
+                List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
+                
+                if (userCrops.isEmpty()) {
+                    response.put("success", false);
+                    response.put("error", "У пользователя нет растений в коллекции");
+                    return ResponseEntity.badRequest().body(response);
+                }
+                
+                System.out.println("Найдено растений для удаления: " + userCrops.size());
+                
+                // Удаляем все записи
+                userCropRepository.deleteAll(userCrops);
+                
+                response.put("success", true);
+                response.put("message", "Удалено " + userCrops.size() + " растений");
+                response.put("deletedCount", userCrops.size());
+                
+                System.out.println("Успешно удалено растений: " + userCrops.size());
+                
+                return ResponseEntity.ok(response);
+                
+            } catch (Exception e) {
+                System.out.println("Ошибка при удалении всех растений: " + e.getMessage());
+                e.printStackTrace();
+                
+                response.put("success", false);
+                response.put("error", "Ошибка сервера: " + e.getMessage());
+                return ResponseEntity.internalServerError().body(response);
+            }
+        }
+}

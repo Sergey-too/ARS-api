@@ -1,6 +1,8 @@
 package com.example.backend;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,9 @@ public class CropController {
     
     @Autowired
     private CropRepository cropRepository;
+    
+    @Autowired // ДОБАВЬТЕ ЭТО
+    private UserCropRepository userCropRepository;
     
     // 1. Получить все категории
     @GetMapping("/categories")
@@ -95,6 +100,7 @@ public class CropController {
         List<Crop> crops = cropRepository.findAll();
         return ResponseEntity.ok(crops);
     }
+    
     // 5. Получить растение по ID
     @GetMapping("/crops/{id}")
     public ResponseEntity<Crop> getCropById(@PathVariable Integer id) {
@@ -162,16 +168,49 @@ public class CropController {
     
     // 6. Удалить растение
     @DeleteMapping("/crops/{id}")
-    public ResponseEntity<Void> deleteCrop(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> deleteCrop(@PathVariable Integer id) {
+        Map<String, Object> response = new HashMap<>();
+        
         try {
-            if (!cropRepository.existsById(id)) {
-                return ResponseEntity.notFound().build();
+            Crop crop = cropRepository.findById(id).orElse(null);
+            if (crop == null) {
+                response.put("success", false);
+                response.put("error", "Растение с ID " + id + " не найдено");
+                return ResponseEntity.status(404).body(response);
             }
+            
+            // ПЕРВОЕ РЕШЕНИЕ: Удаляем все связи user_crops перед удалением растения
+            System.out.println("Пытаюсь удалить растение ID: " + id);
+            
+            // Используем userCropRepository (переменную) вместо UserCropRepository (класса)
+            List<UserCrop> userCrops = userCropRepository.findByCropId(id);
+            System.out.println("Найдено связанных записей в user_crops: " + userCrops.size());
+            
+            if (!userCrops.isEmpty()) {
+                userCropRepository.deleteAll(userCrops);
+                System.out.println("Удалено записей из user_crops: " + userCrops.size());
+            }
+            
+            // Удаляем само растение
             cropRepository.deleteById(id);
-            return ResponseEntity.ok().build();
+            
+            response.put("success", true);
+            response.put("message", "Растение успешно удалено");
+            response.put("cropId", id);
+            response.put("deletedUserCropsCount", userCrops.size());
+            
+            System.out.println("Растение ID " + id + " успешно удалено");
+            
+            return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
+            System.out.println("Ошибка удаления растения: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.badRequest().build();
+            
+            response.put("success", false);
+            response.put("error", "Ошибка при удалении: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
         }
     }
     
