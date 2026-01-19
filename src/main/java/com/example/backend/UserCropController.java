@@ -28,6 +28,9 @@
         
         @Autowired
         private CropRepository cropRepository;
+
+        @Autowired
+        private RegionRepository regionRepository;
         
         // 1. Получить все растения пользователя
         @GetMapping("/user/{userId}")
@@ -38,75 +41,6 @@
             System.out.println("Отправляем " + userCrops.size() + " растений для пользователя " + userId);
             
             return ResponseEntity.ok(userCrops);
-        }
-        
-        // 2. Добавить растение пользователю
-        @PostMapping("/user/add")
-        public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody Map<String, Object> request) {
-            Map<String, Object> response = new HashMap<>();
-            
-            try {
-                // Получаем данные из запроса
-                Integer userId = (Integer) request.get("userId");
-                Integer cropId = (Integer) request.get("cropId");
-                
-                System.out.println("Получен запрос на добавление растения: userId=" + userId + ", cropId=" + cropId);
-                
-                // Проверяем обязательные поля
-                if (userId == null) {
-                    response.put("success", false);
-                    response.put("error", "Не указан ID пользователя");
-                    return ResponseEntity.badRequest().body(response);
-                }
-                
-                if (cropId == null) {
-                    response.put("success", false);
-                    response.put("error", "Не указано растение");
-                    return ResponseEntity.badRequest().body(response);
-                }
-                
-                // Проверяем существует ли растение в БД
-                boolean cropExists = cropRepository.existsById(cropId);
-                if (!cropExists) {
-                    response.put("success", false);
-                    response.put("error", "Растение с ID " + cropId + " не найдено");
-                    return ResponseEntity.badRequest().body(response);
-                }
-                
-                // Проверяем, не добавлено ли уже это растение пользователю
-                List<UserCrop> existingCrops = userCropRepository.findByUserId(userId);
-                boolean alreadyAdded = existingCrops.stream()
-                    .anyMatch(uc -> uc.getCropId().equals(cropId));
-                
-                if (alreadyAdded) {
-                    response.put("success", false);
-                    response.put("error", "Это растение уже добавлено в вашу коллекцию");
-                    return ResponseEntity.badRequest().body(response);
-                }
-                
-                // Создаем новую запись (ТОЛЬКО userId и cropId!)
-                UserCrop userCrop = new UserCrop();
-                userCrop.setUserId(userId);
-                userCrop.setCropId(cropId);
-                
-                // Сохраняем в БД
-                UserCrop savedUserCrop = userCropRepository.save(userCrop);
-                
-                System.out.println("Растение успешно добавлено. ID записи: " + savedUserCrop.getId());
-                
-                // Возвращаем успешный ответ
-                response.put("success", true);
-                response.put("message", "Растение успешно добавлено");
-                response.put("userCropId", savedUserCrop.getId());
-                
-                return ResponseEntity.ok(response);
-                
-            } catch (Exception e) {
-                e.printStackTrace();
-                response.put("success", false);
-                response.put("error", "Внутренняя ошибка сервера: " + e.getMessage());
-                return ResponseEntity.status(500).body(response);
-            }
         }
         
         // 3. Удалить растение у пользователя
@@ -204,4 +138,79 @@
                 return ResponseEntity.internalServerError().body(response);
             }
         }
+
+    // Добавить растение пользователю с регионом
+    @PostMapping("/user/add")
+    public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            Integer userId = (Integer) request.get("userId");
+            Integer cropId = (Integer) request.get("cropId");
+            Integer regionId = (Integer) request.get("regionId");  // Получаем regionId
+            
+            System.out.println("Добавление растения: userId=" + userId + 
+                            ", cropId=" + cropId + ", regionId=" + regionId);
+            
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "Не указан ID пользователя");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            if (cropId == null) {
+                response.put("success", false);
+                response.put("error", "Не указано растение");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            if (regionId == null) {
+                response.put("success", false);
+                response.put("error", "Не указан регион");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Проверяем существует ли растение
+            if (!cropRepository.existsById(cropId)) {
+                response.put("success", false);
+                response.put("error", "Растение не найдено");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Проверяем существует ли регион
+            if (!regionRepository.existsById(regionId)) {
+                response.put("success", false);
+                response.put("error", "Регион не найден");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Проверяем, не добавлено ли уже это растение
+            boolean alreadyAdded = userCropRepository.existsByUserIdAndCropId(userId, cropId);
+            if (alreadyAdded) {
+                response.put("success", false);
+                response.put("error", "Это растение уже добавлено");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Создаем новую запись
+            UserCrop userCrop = new UserCrop();
+            userCrop.setUserId(userId);
+            userCrop.setCropId(cropId);
+            userCrop.setRegionId(regionId);  // Устанавливаем regionId
+            
+            UserCrop savedUserCrop = userCropRepository.save(userCrop);
+            
+            response.put("success", true);
+            response.put("message", "Растение добавлено с регионом");
+            response.put("userCropId", savedUserCrop.getId());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("error", "Ошибка сервера: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
 }

@@ -26,4 +26,7 @@ public interface UserCropRepository extends JpaRepository<UserCrop, Integer> {
 
     @Query("SELECT uc FROM UserCrop uc WHERE uc.cropId = :cropId")
     List<UserCrop> findByCropId(@Param("cropId") Integer cropId);
+
+    @Query("SELECT COUNT(uc) > 0 FROM UserCrop uc WHERE uc.userId = :userId AND uc.cropId = :cropId")
+    boolean existsByUserIdAndCropId(@Param("userId") Integer userId, @Param("cropId") Integer cropId);
 }
