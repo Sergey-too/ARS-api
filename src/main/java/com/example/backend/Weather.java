@@ -1,7 +1,6 @@
 package com.example.backend;
 
 import java.time.LocalDate;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -10,7 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "weather")
+@Table(name = "weather_atm") 
 public class Weather {
     
     @Id
@@ -23,63 +22,69 @@ public class Weather {
     @Column(name = "date", nullable = false)
     private LocalDate date;
     
-    @Column(name = "temperature", length = 10)
-    private String temperature;
+    @Column(name = "temperature_min")
+    private String temperatureMin;
     
-    @Column(name = "humidity", length = 10)
-    private String humidity;
+    @Column(name = "temperature_max")
+    private String temperatureMax;
     
-    @Column(name = "precipitation", length = 25)
+    @Column(name = "humidity_min")
+    private String humidityMin;
+    
+    @Column(name = "humidity_max")
+    private String humidityMax;
+    
+    @Column(name = "precipitation")
     private String precipitation;
     
-    @Column(name = "wind", length = 25)
-    private String wind;
+    @Column(name = "wind_min")
+    private String windMin;
     
-    @Column(name = "condition", length = 50)
-    private String condition;
+    @Column(name = "wind_max")
+    private String windMax;
     
-    // Конструкторы
+    @Column(name = "gusts_of_wind")
+    private String gustsOfWind;
+    
+    @Column(name = "pressure")
+    private String pressure;
+
     public Weather() {}
-    
-    public Weather(Integer regionId, LocalDate date, String temperature, 
-                  String humidity, String precipitation, String wind, String condition) {
-        this.regionId = regionId;
-        this.date = date;
-        this.temperature = temperature;
-        this.humidity = humidity;
-        this.precipitation = precipitation;
-        this.wind = wind;
-        this.condition = condition;
-    }
-    
+
     // Геттеры и сеттеры
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
-    
+
     public Integer getRegionId() { return regionId; }
     public void setRegionId(Integer regionId) { this.regionId = regionId; }
-    
+
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
-    
-    public String getTemperature() { return temperature; }
-    public void setTemperature(String temperature) { this.temperature = temperature; }
-    
-    public String getHumidity() { return humidity; }
-    public void setHumidity(String humidity) { this.humidity = humidity; }
-    
+
+    public String getTemperatureMin() { return temperatureMin; }
+    public void setTemperatureMin(String temperatureMin) { this.temperatureMin = temperatureMin; }
+
+    public String getTemperatureMax() { return temperatureMax; }
+    public void setTemperatureMax(String temperatureMax) { this.temperatureMax = temperatureMax; }
+
+    public String getHumidityMin() { return humidityMin; }
+    public void setHumidityMin(String humidityMin) { this.humidityMin = humidityMin; }
+
+    public String getHumidityMax() { return humidityMax; }
+    public void setHumidityMax(String humidityMax) { this.humidityMax = humidityMax; }
+
     public String getPrecipitation() { return precipitation; }
     public void setPrecipitation(String precipitation) { this.precipitation = precipitation; }
-    
-    public String getWind() { return wind; }
-    public void setWind(String wind) { this.wind = wind; }
-    
-    public String getCondition() { return condition; }
-    public void setCondition(String condition) { this.condition = condition; }
-    
-    @Override
-    public String toString() {
-        return "Weather{id=" + id + ", regionId=" + regionId + ", date=" + date + 
-               ", temperature='" + temperature + "', humidity='" + humidity + "'}";
-    }
+
+    public String getWindMin() { return windMin; }
+    public void setWindMin(String windMin) { this.windMin = windMin; }
+
+    public String getWindMax() { return windMax; }
+    public void setWindMax(String windMax) { this.windMax = windMax; }
+
+    public String getGustsOfWind() { return gustsOfWind; }
+    public void setGustsOfWind(String gustsOfWind) { this.gustsOfWind = gustsOfWind; }
+
+    public String getPressure() { return pressure; }
+    public void setPressure(String pressure) { this.pressure = pressure; }
 }

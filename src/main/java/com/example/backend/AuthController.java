@@ -27,15 +27,13 @@ public class AuthController {
             String login = request.get("login");
             String email = request.get("email");
             String password = request.get("password");
-            String name = request.get("name"); // Для Android
+            String name = request.get("name"); 
             
-            // Если нет логина, создаем из email
             if ((login == null || login.trim().isEmpty()) && email != null) {
                 login = email.split("@")[0];
                 login = login.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
             }
             
-            // Валидация
             if (login == null || login.trim().isEmpty()) {
                 response.put("success", false);
                 response.put("error", "Логин обязателен");
@@ -53,8 +51,7 @@ public class AuthController {
                 response.put("error", "Пароль обязателен");
                 return ResponseEntity.badRequest().body(response);
             }
-            
-            // Проверяем существование
+
             if (userRepository.existsByLogin(login)) {
                 response.put("success", false);
                 response.put("error", "Пользователь с таким логином уже существует");
@@ -67,18 +64,16 @@ public class AuthController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            // Создаем пользователя
             User user = new User();
             user.setLogin(login);
             user.setEmail(email);
             user.setPassword(password);
             
             User savedUser = userRepository.save(user);
-            
-            // Создаем ответ для Android
+
             Map<String, Object> userResponse = new HashMap<>();
             userResponse.put("id", savedUser.getId());
-            userResponse.put("name", name != null ? name : login); // Возвращаем name для Android
+            userResponse.put("name", name != null ? name : login); 
             userResponse.put("email", savedUser.getEmail());
             userResponse.put("login", savedUser.getLogin());
             userResponse.put("createdAt", savedUser.getRegistrationDate());

@@ -11,7 +11,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("*")  // Для разработки
+                .allowedOrigins("*")  
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false)
@@ -20,12 +20,10 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Доступ к файлам через /api/img/**
         registry.addResourceHandler("/api/img/**")
                 .addResourceLocations("file:./uploads/")
                 .setCachePeriod(3600);
-        
-        // Доступ к файлам через /uploads/**
+
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:./uploads/")
                 .setCachePeriod(3600);
