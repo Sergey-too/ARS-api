@@ -1,14 +1,6 @@
 package com.example.backend;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "user_crops")
@@ -24,16 +16,16 @@ public class UserCrop {
     @Column(name = "crop_id", nullable = false)
     private Integer cropId;
     
-    @Column(name = "region_id")
-    private Integer regionId;  // НОВОЕ ПОЛЕ
+    @Column(name = "area_id") 
+    private Integer areaId;
     
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne
     @JoinColumn(name = "crop_id", insertable = false, updatable = false)
     private Crop crop;
-    
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "region_id", insertable = false, updatable = false)
-    private Region region;  // Связь с регионом
+
+    @ManyToOne
+    @JoinColumn(name = "area_id", insertable = false, updatable = false)
+    private Area area;
     
     // Геттеры и сеттеры
     public Integer getId() { return id; }
@@ -45,12 +37,12 @@ public class UserCrop {
     public Integer getCropId() { return cropId; }
     public void setCropId(Integer cropId) { this.cropId = cropId; }
     
-    public Integer getRegionId() { return regionId; }
-    public void setRegionId(Integer regionId) { this.regionId = regionId; }
+    public Integer getAreaId() { return areaId; }
+    public void setAreaId(Integer areaId) { this.areaId = areaId; }
     
     public Crop getCrop() { return crop; }
     public void setCrop(Crop crop) { this.crop = crop; }
-    
-    public Region getRegion() { return region; }
-    public void setRegion(Region region) { this.region = region; }
+
+    public Area getArea() { return area; }
+    public void setArea(Area area) { this.area = area; }
 }

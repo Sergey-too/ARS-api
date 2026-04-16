@@ -1,215 +1,139 @@
-    package com.example.backend;
+package com.example.backend;
 
-    import java.io.File;
-    import java.nio.file.Files;
-    import java.util.HashMap;
-    import java.util.List;
-    import java.util.Map;
-    import java.util.Optional;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-    import org.springframework.beans.factory.annotation.Autowired;
-    import org.springframework.http.ResponseEntity;
-    import org.springframework.web.bind.annotation.CrossOrigin;
-    import org.springframework.web.bind.annotation.DeleteMapping;
-    import org.springframework.web.bind.annotation.GetMapping;
-    import org.springframework.web.bind.annotation.PathVariable;
-    import org.springframework.web.bind.annotation.PostMapping;
-    import org.springframework.web.bind.annotation.RequestBody;
-    import org.springframework.web.bind.annotation.RequestMapping;
-    import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-    @RestController
-    @RequestMapping("/api/crops")
-    @CrossOrigin(origins = "*")
-    public class UserCropController {
-        
-        @Autowired
-        private UserCropRepository userCropRepository;
-        
-        @Autowired
-        private CropRepository cropRepository;
+@RestController
+@RequestMapping("/api/crops")
+@CrossOrigin(origins = "*")
+public class UserCropController {
+    
+    @Autowired
+    private UserCropRepository userCropRepository;
 
-        @Autowired
-        private RegionRepository regionRepository;
-        
-        // 1. Получить все растения пользователя
-        @GetMapping("/user/{userId}")
-        public ResponseEntity<List<UserCrop>> getUserCrops(@PathVariable Integer userId) {
-            // Используй метод с загрузкой растения
-            List<UserCrop> userCrops = userCropRepository.findByUserIdWithCropDetails(userId);
-            
-            System.out.println("Отправляем " + userCrops.size() + " растений для пользователя " + userId);
-            
-            return ResponseEntity.ok(userCrops);
-        }
-        
-        // 3. Удалить растение у пользователя
-            @DeleteMapping("/user/{userId}/{cropId}")
-        public ResponseEntity<Map<String, Object>> deleteUserCrop(
-                @PathVariable Integer userId, 
-                @PathVariable Integer cropId) {
-            
-            Map<String, Object> response = new HashMap<>();
-            
-            try {
-                // Находим запись для удаления
-                List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
-                Optional<UserCrop> userCropToDelete = userCrops.stream()
-                    .filter(uc -> uc.getCropId().equals(cropId))
-                    .findFirst();
-                
-                if (!userCropToDelete.isPresent()) {
-                    response.put("success", false);
-                    response.put("error", "Растение не найдено в вашей коллекции");
-                    return ResponseEntity.badRequest().body(response);
-                }
-                
-                // Удаляем запись
-                userCropRepository.delete(userCropToDelete.get());
-                
-                response.put("success", true);
-                response.put("message", "Растение успешно удалено из коллекции");
-                
-                return ResponseEntity.ok(response);
-                
-            } catch (Exception e) {
-                e.printStackTrace();
-                response.put("success", false);
-                response.put("error", "Ошибка при удалении: " + e.getMessage());
-                return ResponseEntity.internalServerError().body(response);
-            }
-        }
+    @Autowired
+    private AreaRepository areaRepository;
+    
+    @Autowired
+    private CropRepository cropRepository;
 
-        @GetMapping("/img/{filename:.+}")
-        public ResponseEntity<byte[]> getImage(@PathVariable String filename) throws Exception {
-            System.out.println("=== GET IMAGE: " + filename + " ===");
-            
-            // Путь к файлу
-            String filePath = "uploads/" + filename;
-            System.out.println("Looking for file: " + new File(filePath).getAbsolutePath());
-            
-            File file = new File(filePath);
-            if (file.exists()) {
-                System.out.println("✓ File FOUND, size: " + file.length() + " bytes");
-                byte[] imageBytes = Files.readAllBytes(file.toPath());
-                return ResponseEntity.ok()
-                        .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
-                        .body(imageBytes);
-            } else {
-                System.out.println("✗ File NOT found at: " + file.getAbsolutePath());
-                return ResponseEntity.notFound().build();
-            }
-        }
-        @DeleteMapping("/user/all/{userId}")
-        public ResponseEntity<Map<String, Object>> deleteAllUserCrops(@PathVariable Integer userId) {
-            Map<String, Object> response = new HashMap<>();
-        
-            try {
-                System.out.println("Запрос на удаление ВСЕХ растений для пользователя: " + userId);
-                
-                // Получаем все растения пользователя
-                List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
-                
-                if (userCrops.isEmpty()) {
-                    response.put("success", false);
-                    response.put("error", "У пользователя нет растений в коллекции");
-                    return ResponseEntity.badRequest().body(response);
-                }
-                
-                System.out.println("Найдено растений для удаления: " + userCrops.size());
-                
-                // Удаляем все записи
-                userCropRepository.deleteAll(userCrops);
-                
-                response.put("success", true);
-                response.put("message", "Удалено " + userCrops.size() + " растений");
-                response.put("deletedCount", userCrops.size());
-                
-                System.out.println("Успешно удалено растений: " + userCrops.size());
-                
-                return ResponseEntity.ok(response);
-                
-            } catch (Exception e) {
-                System.out.println("Ошибка при удалении всех растений: " + e.getMessage());
-                e.printStackTrace();
-                
-                response.put("success", false);
-                response.put("error", "Ошибка сервера: " + e.getMessage());
-                return ResponseEntity.internalServerError().body(response);
-            }
-        }
-
-    // Добавить растение пользователю с регионом
     @PostMapping("/user/add")
     public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
-        
         try {
-            Integer userId = (Integer) request.get("userId");
-            Integer cropId = (Integer) request.get("cropId");
-            Integer regionId = (Integer) request.get("regionId");  // Получаем regionId
-            
-            System.out.println("Добавление растения: userId=" + userId + 
-                            ", cropId=" + cropId + ", regionId=" + regionId);
-            
-            if (userId == null) {
+            Integer userId = Integer.valueOf(request.get("userId").toString());
+            Integer cropId = Integer.valueOf(request.get("cropId").toString());
+            Integer areaId = Integer.valueOf(request.get("areaId").toString()); 
+
+            System.out.println("Добавление растения: userId=" + userId + ", cropId=" + cropId + ", areaId=" + areaId);
+
+            if (!areaRepository.existsById(areaId)) {
                 response.put("success", false);
-                response.put("error", "Не указан ID пользователя");
+                response.put("error", "Участок не найден");
                 return ResponseEntity.badRequest().body(response);
             }
-            
-            if (cropId == null) {
-                response.put("success", false);
-                response.put("error", "Не указано растение");
-                return ResponseEntity.badRequest().body(response);
-            }
-            
-            if (regionId == null) {
-                response.put("success", false);
-                response.put("error", "Не указан регион");
-                return ResponseEntity.badRequest().body(response);
-            }
-            
-            // Проверяем существует ли растение
+
             if (!cropRepository.existsById(cropId)) {
                 response.put("success", false);
                 response.put("error", "Растение не найдено");
                 return ResponseEntity.badRequest().body(response);
             }
-            
-            // Проверяем существует ли регион
-            if (!regionRepository.existsById(regionId)) {
-                response.put("success", false);
-                response.put("error", "Регион не найден");
-                return ResponseEntity.badRequest().body(response);
-            }
-            
-            // Проверяем, не добавлено ли уже это растение
+
+            // Проверка на дубликат (опционально)
             boolean alreadyAdded = userCropRepository.existsByUserIdAndCropId(userId, cropId);
             if (alreadyAdded) {
                 response.put("success", false);
-                response.put("error", "Это растение уже добавлено");
+                response.put("error", "Это растение уже есть в вашей коллекции");
                 return ResponseEntity.badRequest().body(response);
             }
-            
-            // Создаем новую запись
+
             UserCrop userCrop = new UserCrop();
             userCrop.setUserId(userId);
             userCrop.setCropId(cropId);
-            userCrop.setRegionId(regionId);  // Устанавливаем regionId
-            
-            UserCrop savedUserCrop = userCropRepository.save(userCrop);
-            
+            userCrop.setAreaId(areaId); 
+
+            userCropRepository.save(userCrop);
+
             response.put("success", true);
-            response.put("message", "Растение добавлено с регионом");
-            response.put("userCropId", savedUserCrop.getId());
-            
+            response.put("message", "Растение успешно добавлено на участок");
             return ResponseEntity.ok(response);
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             response.put("success", false);
             response.put("error", "Ошибка сервера: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    @DeleteMapping("/user/{userId}/{cropId}")
+    public ResponseEntity<Map<String, Object>> deleteUserCrop(@PathVariable Integer userId, @PathVariable Integer cropId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
+            Optional<UserCrop> userCropToDelete = userCrops.stream()
+                .filter(uc -> uc.getCropId().equals(cropId))
+                .findFirst();
+            
+            if (userCropToDelete.isEmpty()) {
+                response.put("success", false);
+                response.put("error", "Растение не найдено");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            userCropRepository.delete(userCropToDelete.get());
+            response.put("success", true);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    @GetMapping("/img/{filename:.+}")
+    public ResponseEntity<byte[]> getImage(@PathVariable String filename) throws Exception {
+        File file = new File("uploads/" + filename);
+        if (file.exists()) {
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(Files.readAllBytes(file.toPath()));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<UserCrop>> getUserCrops(@PathVariable Integer userId) {
+        try {
+            List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
+            
+            return ResponseEntity.ok(userCrops);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @DeleteMapping("/user/all/{userId}")
+    public ResponseEntity<Map<String, Object>> deleteAllUserCrops(@PathVariable Integer userId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            userCropRepository.deleteByUserId(userId);
+            
+            response.put("success", true);
+            response.put("message", "Все растения пользователя удалены");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("error", "Ошибка сервера при удалении: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }
