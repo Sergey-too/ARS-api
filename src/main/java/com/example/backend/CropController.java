@@ -3,6 +3,7 @@ package com.example.backend;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,12 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class CropController {
     
     @Autowired
+    private CompatibilityRepository compatibilityRepository; 
+
+    @Autowired
     private CategoryRepository categoryRepository;
     
     @Autowired
     private CropRepository cropRepository;
     
-    @Autowired // ДОБАВЬТЕ ЭТО
+    @Autowired
     private UserCropRepository userCropRepository;
     
     // 1. Получить все категории
@@ -287,5 +291,28 @@ public class CropController {
         
         public String getPhotoPath() { return photoPath; }
         public void setPhotoPath(String photoPath) { this.photoPath = photoPath; }
+    }
+
+   @GetMapping("/crops/compatibility")
+    public ResponseEntity<List<CompatibilityDTO>> getCompatibilityMatrix() {
+        List<Object[]> rawData = compatibilityRepository.getRawMatrix();
+        
+        List<CompatibilityDTO> result = rawData.stream()
+            .map(row -> {
+                // Исправленные индексы согласно SQL процедуре:
+                // row[1] - name1, row[3] - name2, row[4] - compStatus
+                String crop1 = String.valueOf(row[1]); 
+                String crop2 = String.valueOf(row[3]);
+                
+                Integer status = 1; // Значение по умолчанию
+                if (row[4] != null) {
+                    status = ((Number) row[4]).intValue();
+                }
+
+                return new CompatibilityDTO(crop1, crop2, status);
+            })
+            .collect(Collectors.toList());
+            
+        return ResponseEntity.ok(result);
     }
 }
