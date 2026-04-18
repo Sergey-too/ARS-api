@@ -1,14 +1,21 @@
 package com.example.backend;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/weather")
 public class WeatherController {
-    
+
     @Autowired
     private RegionRepository regionRepository;
     
@@ -83,4 +90,39 @@ public class WeatherController {
             return 0.0;
         }
     }
+    @GetMapping("/compare/{regionId}")
+    public List<WeatherComparisonDTO> getComparison(@PathVariable Long regionId) {
+        List<Object[]> results = weatherRepository.getYearlyComparisonRaw(regionId);
+        List<WeatherComparisonDTO> dtos = new ArrayList<>();
+
+        if (results == null || results.isEmpty()) {
+            return dtos;
+        }
+
+        for (Object[] row : results) {
+            WeatherComparisonDTO dto = new WeatherComparisonDTO();
+            
+            dto.setMonthName(row[0] != null ? row[0].toString() : "Unknown");
+            dto.setAvgFactTemp(row[1] != null ? ((Number) row[1]).doubleValue() : 0.0);
+            dto.setNormalTemp(row[2] != null ? ((Number) row[2]).doubleValue() : 0.0);
+            dto.setAvgFactHumidity(row[3] != null ? ((Number) row[3]).doubleValue() : 0.0);
+            dto.setNormalHumidity(row[4] != null ? ((Number) row[4]).doubleValue() : 0.0);
+            
+            dtos.add(dto);
+        }
+
+        return dtos; 
+    }
+    private Double safeDouble(Object value) {
+        if (value == null) return 0.0;
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
 }
+    
