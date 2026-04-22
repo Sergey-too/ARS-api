@@ -7,6 +7,8 @@ public class UserResponse {
     private String login;
     private String email;
     private LocalDateTime registrationDate;
+    private boolean inBan;
+    private boolean isAdmin;
     
     // Геттеры и сеттеры
     public Integer getId() { return id; }

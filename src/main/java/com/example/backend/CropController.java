@@ -35,7 +35,7 @@ public class CropController {
     private UserCropRepository userCropRepository;
     
     // 1. Получить все категории
-    @GetMapping("/categories")
+    @GetMapping("/categories")  
     public ResponseEntity<List<Category>> getAllCategories() {
         List<Category> categories = categoryRepository.findAllOrdered();
         categories.forEach(category -> category.setCrops(null));

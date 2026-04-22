@@ -3,6 +3,7 @@ package com.example.backend;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -28,10 +29,17 @@ public class User {
     
     @Column(name = "registration_date")
     private LocalDateTime registrationDate;
-    
-    // Конструктор по умолчанию
+
+    @Column(name = "is_admin", nullable = false)
+    private boolean isAdmin = false; 
+
+    @Column(name = "in_ban", nullable = false)
+    private boolean inBan = false;  
+
     public User() {
         this.registrationDate = LocalDateTime.now();
+        this.isAdmin = false;
+        this.inBan = false;
     }
     
     // Геттеры и сеттеры
@@ -51,9 +59,14 @@ public class User {
     public void setRegistrationDate(LocalDateTime registrationDate) { 
         this.registrationDate = registrationDate; 
     }
-    
-    // Метод для установки пароля (простое хэширование)
+
     public void setPassword(String password) {
-        this.passwordHash = password; // Временное решение
+        this.passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(10));
     }
+
+    public boolean isAdmin() { return isAdmin; }
+    public void setAdmin(boolean admin) { isAdmin = admin; }
+
+    public boolean isInBan() { return inBan; }
+    public void setInBan(boolean ban) { inBan = ban; }
 }
