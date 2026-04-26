@@ -26,14 +26,21 @@ public class UserCropController {
     private CropRepository cropRepository;
 
     @PostMapping("/user/add")
-    public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody AddCropRequest request) {
         Map<String, Object> response = new HashMap<>();
-        try {
-            Integer userId = Integer.valueOf(request.get("userId").toString());
-            Integer cropId = Integer.valueOf(request.get("cropId").toString());
-            Integer areaId = Integer.valueOf(request.get("areaId").toString()); 
 
-            System.out.println("Добавление растения: userId=" + userId + ", cropId=" + cropId + ", areaId=" + areaId);
+        Integer userId = request.getUserId();
+        Integer cropId = request.getCropId();
+        Integer areaId = request.getAreaId();
+
+        if (userId == null || cropId == null || areaId == null) {
+            response.put("success", false);
+            response.put("error", "Не все обязательные поля заполнены");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        try {
+            System.out.println("Добавление: userId=" + userId + ", cropId=" + cropId + ", areaId=" + areaId);
 
             if (!areaRepository.existsById(areaId)) {
                 response.put("success", false);
@@ -47,9 +54,7 @@ public class UserCropController {
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Проверка на дубликат (опционально)
-            boolean alreadyAdded = userCropRepository.existsByUserIdAndCropId(userId, cropId);
-            if (alreadyAdded) {
+            if (userCropRepository.existsByUserIdAndCropId(userId, cropId)) {
                 response.put("success", false);
                 response.put("error", "Это растение уже есть в вашей коллекции");
                 return ResponseEntity.badRequest().body(response);
@@ -69,7 +74,7 @@ public class UserCropController {
         } catch (Exception e) {
             e.printStackTrace();
             response.put("success", false);
-            response.put("error", "Ошибка сервера: " + e.getMessage());
+            response.put("error", "Ошибка базы данных: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }

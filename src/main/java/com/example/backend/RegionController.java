@@ -12,7 +12,7 @@ public class RegionController {
 
     @Autowired
     private RegionRepository regionRepository;
-
+        
     @GetMapping
     public List<Region> getAllRegions() {
         return regionRepository.findAllOrdered();
