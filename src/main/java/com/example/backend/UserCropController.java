@@ -118,10 +118,13 @@ public class UserCropController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<UserCrop>> getUserCrops(@PathVariable Integer userId) {
         try {
-            List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
+            List<UserCrop> userCrops = userCropRepository.findByUserIdWithCropDetails(userId);
+
+            System.out.println("Найдено растений для пользователя " + userId + ": " + userCrops.size());
             
             return ResponseEntity.ok(userCrops);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(500).build();
         }
     }

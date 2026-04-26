@@ -2,10 +2,12 @@ package com.example.backend;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 @Table(name = "individual_user_crops")
 public class IndividualUserCrop {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
@@ -42,9 +44,32 @@ public class IndividualUserCrop {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    public IndividualUserCrop() {}
+    @JsonProperty("crop")
+    public FakeCrop getFakeCrop() {
+        return new FakeCrop(this.name, this.description, this.localPhotoPath);
+    }
 
-    // --- Геттеры и Сеттеры ---
+    @JsonProperty("area")
+    public FakeArea getFakeArea() {
+        return new FakeArea("Личное");
+    }
+
+    public static class FakeCrop {
+        public String name;
+        public String description;
+        public String photoPath;
+
+        public FakeCrop(String n, String d, String p) {
+            this.name = n;
+            this.description = d;
+            this.photoPath = p;
+        }
+    }
+
+    public static class FakeArea {
+        public String name;
+        public FakeArea(String n) { this.name = n; }
+    }
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -99,4 +124,6 @@ public class IndividualUserCrop {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public IndividualUserCrop() {}
 }

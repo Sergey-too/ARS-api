@@ -8,68 +8,28 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/my-crops")
+@RequestMapping("/api/my-crops") 
 public class IndividualUserCropController {
 
     @Autowired
     private IndividualUserCropRepository repository;
 
-    // 1. Получить все растения конкретного юзера
+    // Получить только кастомные растения юзера
     @GetMapping("/user/{userId}")
-    public List<IndividualUserCrop> getCropsByUserId(@PathVariable Integer userId) {
+    public List<IndividualUserCrop> getPersonalCrops(@PathVariable Integer userId) {
         return repository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
-    // 2. Получить конкретное растение по ID
-    @GetMapping("/{id}")
-    public ResponseEntity<IndividualUserCrop> getCropById(@PathVariable Integer id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    // 3. Создать новую запись
+    // Создать новое личное растение (тот самый POST для "Форда")
     @PostMapping
     public ResponseEntity<IndividualUserCrop> createCrop(@RequestBody IndividualUserCrop crop) {
-        try {
-            IndividualUserCrop savedCrop = repository.save(crop);
-            return new ResponseEntity<>(savedCrop, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        return new ResponseEntity<>(repository.save(crop), HttpStatus.CREATED);
     }
-
-    // 4. Обновить существующую запись
-    @PutMapping("/{id}")
-    public ResponseEntity<IndividualUserCrop> updateCrop(@PathVariable Integer id, @RequestBody IndividualUserCrop details) {
-        return repository.findById(id).map(crop -> {
-            crop.setName(details.getName());
-            crop.setDescription(details.getDescription());
-            crop.setMinTemp(details.getMinTemp());
-            crop.setMaxTemp(details.getMaxTemp());
-            crop.setMaxWind(details.getMaxWind());
-            crop.setMinHumidity(details.getMinHumidity());
-            crop.setMaxHumidity(details.getMaxHumidity());
-            crop.setNeededPrecipitation(details.getNeededPrecipitation());
-            crop.setSowingDepth(details.getSowingDepth());
-            crop.setDaysToGermination(details.getDaysToGermination());
-            crop.setDaysToHarvest(details.getDaysToHarvest());
-            crop.setCanSeedlings(details.isCanSeedlings());
-            crop.setCanDirectSow(details.isCanDirectSow());
-            crop.setLocalPhotoPath(details.getLocalPhotoPath());
-            crop.setCategoryId(details.getCategoryId());
-            return ResponseEntity.ok(repository.save(crop));
-        }).orElse(ResponseEntity.notFound().build());
-    }
-
-    // 5. Удалить растение
+    
+    // Удаление и обновление (по желанию)
     @DeleteMapping("/{id}")
-    public ResponseEntity<HttpStatus> deleteCrop(@PathVariable Integer id) {
-        try {
-            repository.deleteById(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<Void> deleteCrop(@PathVariable Integer id) {
+        repository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 }
