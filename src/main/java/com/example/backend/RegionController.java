@@ -30,4 +30,17 @@ public class RegionController {
             return ResponseEntity.ok(regionRepository.save(region));
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteRegion(@PathVariable Integer id) {
+        return regionRepository.findById(id).map(region -> {
+            try {
+                regionRepository.delete(region);
+                return ResponseEntity.ok().build(); 
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                return ResponseEntity.status(409) 
+                        .body("Нельзя удалить регион: к нему привязаны другие данные");
+            }
+        }).orElse(ResponseEntity.notFound().build()); 
+    }
 }
