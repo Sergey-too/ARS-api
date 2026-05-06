@@ -69,24 +69,30 @@ public class UserCropController {
     }
 
     // 3. Удаление конкретного растения у пользователя
-    @DeleteMapping("/user/{userId}/{cropId}")
-    public ResponseEntity<Map<String, Object>> deleteUserCrop(@PathVariable Integer userId, @PathVariable Integer cropId) {
+    @DeleteMapping("/user/{userId}/{userCropId}")
+    public ResponseEntity<Map<String, Object>> deleteUserCrop(@PathVariable Integer userId, @PathVariable Integer userCropId) {
         Map<String, Object> response = new HashMap<>();
         try {
-            List<UserCrop> userCrops = userCropRepository.findByUserId(userId);
-            Optional<UserCrop> userCropToDelete = userCrops.stream()
-                .filter(uc -> uc.getCropId() != null && uc.getCropId().equals(cropId))
-                .findFirst();
+            // Ищем ПО ID записи в user_crops, а не по cropId
+            Optional<UserCrop> userCrop = userCropRepository.findById(userCropId);
             
-            if (userCropToDelete.isEmpty()) {
+            if (userCrop.isEmpty()) {
                 response.put("success", false);
                 response.put("error", "Растение не найдено");
                 return ResponseEntity.badRequest().body(response);
             }
             
-            userCropRepository.delete(userCropToDelete.get());
+            // Проверяем, что растение принадлежит пользователю
+            if (!userCrop.get().getUserId().equals(userId)) {
+                response.put("success", false);
+                response.put("error", "Доступ запрещен");
+                return ResponseEntity.status(403).body(response);
+            }
+            
+            userCropRepository.delete(userCrop.get());
             response.put("success", true);
             return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
             response.put("success", false);
             response.put("error", e.getMessage());

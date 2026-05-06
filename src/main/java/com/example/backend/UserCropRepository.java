@@ -21,4 +21,6 @@ public interface UserCropRepository extends JpaRepository<UserCrop, Integer> {
 
     @org.springframework.transaction.annotation.Transactional
     void deleteByUserId(Integer userId);
+
+    List<UserCrop> findByIndividualCropId(Integer individualCropId);
 }
