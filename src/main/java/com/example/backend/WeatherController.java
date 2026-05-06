@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,6 +56,79 @@ public class WeatherController {
         return response;
     }
 
+    // ============ НОВЫЙ ЭНДПОИНТ ДЛЯ ANDROID (ПО ID РЕГИОНА) ============
+    
+    @GetMapping("/region/{regionId}")
+    public ResponseEntity<Map<String, Object>> getWeatherByRegionId(@PathVariable Integer regionId) {
+        Map<String, Object> response = new HashMap<>();
+        
+        // Находим регион по ID
+        Region region = regionRepository.findById(regionId).orElse(null);
+        if (region == null) {
+            response.put("error", "Регион не найден");
+            return ResponseEntity.notFound().build();
+        }
+
+        LocalDate today = LocalDate.now();
+        List<Weather> weatherData = weatherRepository.findByRegionIdAndDateAfter(regionId, today);
+        
+        response.put("region", region.getName());
+        response.put("isTestData", false);
+
+        if (weatherData.isEmpty()) {
+            response.put("message", "На сегодня и будущие даты данных нет");
+            response.put("weather", new ArrayList<>());
+        } else {
+            response.put("message", "Прогноз загружен");
+            response.put("weather", convertToAndroidFormat(weatherData));
+        }
+        
+        return ResponseEntity.ok(response);
+    }
+
+    // ============ ЭНДПОИНТЫ ДЛЯ АДМИНКИ ============
+    
+    @GetMapping("/all")
+    public ResponseEntity<List<Map<String, Object>>> getAllWeather() {
+        List<Weather> allWeather = weatherRepository.findAll();
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (Weather w : allWeather) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", w.getId());
+            map.put("regionId", w.getRegionId());
+            map.put("date", w.getDate().toString());
+            map.put("temperatureMin", w.getTemperatureMin());
+            map.put("temperatureMax", w.getTemperatureMax());
+            map.put("humidityMin", w.getHumidityMin());
+            map.put("humidityMax", w.getHumidityMax());
+            map.put("precipitation", w.getPrecipitation());
+            map.put("windMin", w.getWindMin());
+            map.put("windMax", w.getWindMax());
+            map.put("gustsOfWind", w.getGustsOfWind());
+            map.put("pressure", w.getPressure());
+            result.add(map);
+        }
+        
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, String>> deleteWeather(@PathVariable Integer id) {
+        if (weatherRepository.existsById(id)) {
+            weatherRepository.deleteById(id);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Запись удалена");
+            return ResponseEntity.ok(response);
+        } else {
+            Map<String, String> response = new HashMap<>();
+            response.put("error", "Запись не найдена");
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // ============ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ============
+
     private List<Map<String, Object>> convertToAndroidFormat(List<Weather> weatherList) {
         List<Map<String, Object>> result = new ArrayList<>();
         
@@ -90,6 +165,7 @@ public class WeatherController {
             return 0.0;
         }
     }
+    
     @GetMapping("/compare/{regionId}")
     public List<WeatherComparisonDTO> getComparison(@PathVariable Long regionId) {
         List<Object[]> results = weatherRepository.getYearlyComparisonRaw(regionId);
@@ -113,16 +189,4 @@ public class WeatherController {
 
         return dtos; 
     }
-    private Double safeDouble(Object value) {
-        if (value == null) return 0.0;
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
-        }
-        try {
-            return Double.parseDouble(value.toString());
-        } catch (Exception e) {
-            return 0.0;
-        }
-    }
 }
-    
