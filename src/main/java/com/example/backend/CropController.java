@@ -7,15 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
@@ -33,55 +25,26 @@ public class CropController {
     
     @Autowired
     private UserCropRepository userCropRepository;
-    
-    // 1. Получить все категории
-    @GetMapping("/categories")  
-    public ResponseEntity<List<Category>> getAllCategories() {
-        List<Category> categories = categoryRepository.findAllOrdered();
-        categories.forEach(category -> category.setCrops(null));
-        return ResponseEntity.ok(categories);
-    }
-    
-    // 2. Получить растения по названию категории (ИСПРАВЛЕНО)
+
     @GetMapping("/crops/by-category/{categoryName}")
     public ResponseEntity<List<Crop>> getCropsByCategory(@PathVariable String categoryName) {
         List<Crop> crops = cropRepository.findByCategoryName(categoryName);
-        
-        // НЕ очищаем category, так как используем @JsonIgnore
-        // Просто возвращаем список
         return ResponseEntity.ok(crops);
     }
     
-    // 3. ДОБАВИТЬ новое растение
+    // 3. ДОБАВИТЬ новое растение (ИСПРАВЛЕНО: Добавлены новые поля)
     @PostMapping("/crops")
     public ResponseEntity<Crop> addCrop(@RequestBody CropRequest cropRequest) {
         try {
             Crop crop = new Crop();
-            
-            // Заполняем основные поля
-            crop.setName(cropRequest.getName());
-            crop.setDescription(cropRequest.getDescription());
-            crop.setMinTemp(cropRequest.getMinTemp());
-            crop.setMaxTemp(cropRequest.getMaxTemp());
-            crop.setMaxWind(cropRequest.getMaxWind());
-            crop.setMinHumidity(cropRequest.getMinHumidity());
-            crop.setMaxHumidity(cropRequest.getMaxHumidity());
-            crop.setNeededPrecipitation(cropRequest.getNeededPrecipitation());
-            crop.setSowingDepth(cropRequest.getSowingDepth());
-            crop.setDaysToGermination(cropRequest.getDaysToGermination());
-            crop.setDaysToHarvest(cropRequest.getDaysToHarvest());
-            crop.setCanSeedlings(cropRequest.getCanSeedlings());
-            crop.setCanDirectSow(cropRequest.getCanDirectSow());
-            crop.setPhotoPath(cropRequest.getPhotoPath());
+            fillCropData(crop, cropRequest); // Вынес в отдельный метод, чтобы не дублировать код
             
             // Работаем с категорией
             if (cropRequest.getCategory() != null && !cropRequest.getCategory().isEmpty()) {
-                // Ищем категорию по имени
                 Category category = categoryRepository.findByName(cropRequest.getCategory());
                 if (category != null) {
                     crop.setCategory(category);
                 } else {
-                    // Создаем новую категорию
                     Category newCategory = new Category();
                     newCategory.setName(cropRequest.getCategory());
                     newCategory = categoryRepository.save(newCategory);
@@ -98,58 +61,28 @@ public class CropController {
         }
     }
     
-    // 4. Получить все растения
     @GetMapping("/crops")
     public ResponseEntity<List<Crop>> getAllCrops() {
-        List<Crop> crops = cropRepository.findAll();
-        return ResponseEntity.ok(crops);
+        return ResponseEntity.ok(cropRepository.findAll());
     }
     
-    // 5. Получить растение по ID
     @GetMapping("/crops/{id}")
     public ResponseEntity<Crop> getCropById(@PathVariable Integer id) {
-        try {
-            Crop crop = cropRepository.findById(id).orElse(null);
-            if (crop == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(crop);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().build();
-        }
+        return cropRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // 5. Обновить растение
+    // 5. Обновить растение (ИСПРАВЛЕНО: Добавлены новые поля)
     @PutMapping("/crops/{id}")
-    public ResponseEntity<Crop> updateCrop(@PathVariable Integer id, 
-                                           @RequestBody CropRequest cropRequest) {
+    public ResponseEntity<Crop> updateCrop(@PathVariable Integer id, @RequestBody CropRequest cropRequest) {
         try {
             Crop existingCrop = cropRepository.findById(id).orElse(null);
-            if (existingCrop == null) {
-                return ResponseEntity.notFound().build();
-            }
+            if (existingCrop == null) return ResponseEntity.notFound().build();
             
-            // Обновляем поля
-            existingCrop.setName(cropRequest.getName());
-            existingCrop.setDescription(cropRequest.getDescription());
-            existingCrop.setMinTemp(cropRequest.getMinTemp());
-            existingCrop.setMaxTemp(cropRequest.getMaxTemp());
-            existingCrop.setMaxWind(cropRequest.getMaxWind());
-            existingCrop.setMinHumidity(cropRequest.getMinHumidity());
-            existingCrop.setMaxHumidity(cropRequest.getMaxHumidity());
-            existingCrop.setNeededPrecipitation(cropRequest.getNeededPrecipitation());
-            existingCrop.setSowingDepth(cropRequest.getSowingDepth());
-            existingCrop.setDaysToGermination(cropRequest.getDaysToGermination());
-            existingCrop.setDaysToHarvest(cropRequest.getDaysToHarvest());
-            existingCrop.setCanSeedlings(cropRequest.getCanSeedlings());
-            existingCrop.setCanDirectSow(cropRequest.getCanDirectSow());
-            existingCrop.setPhotoPath(cropRequest.getPhotoPath());
+            fillCropData(existingCrop, cropRequest);
             
-            // Обновляем категорию если изменилась
-            if (cropRequest.getCategory() != null && 
-                !cropRequest.getCategory().equals(existingCrop.getCategoryName())) {
-                
+            if (cropRequest.getCategory() != null && !cropRequest.getCategory().equals(existingCrop.getCategoryName())) {
                 Category category = categoryRepository.findByName(cropRequest.getCategory());
                 if (category != null) {
                     existingCrop.setCategory(category);
@@ -161,70 +94,58 @@ public class CropController {
                 }
             }
             
-            Crop updatedCrop = cropRepository.save(existingCrop);
-            return ResponseEntity.ok(updatedCrop);
-            
+            return ResponseEntity.ok(cropRepository.save(existingCrop));
         } catch (Exception e) {
-            e.printStackTrace();
             return ResponseEntity.badRequest().build();
         }
     }
+
+    // Вспомогательный метод для заполнения данных (чтобы не забыть поля)
+    private void fillCropData(Crop crop, CropRequest req) {
+        crop.setName(req.getName());
+        crop.setDescription(req.getDescription());
+        crop.setMinTemp(req.getMinTemp());
+        crop.setMaxTemp(req.getMaxTemp());
+        crop.setMaxWind(req.getMaxWind());
+        crop.setMinHumidity(req.getMinHumidity());
+        crop.setMaxHumidity(req.getMaxHumidity());
+        crop.setNeededPrecipitation(req.getNeededPrecipitation());
+        crop.setSowingDepth(req.getSowingDepth());
+        crop.setDaysToGermination(req.getDaysToGermination());
+        crop.setDaysToHarvest(req.getDaysToHarvest());
+        crop.setCanSeedlings(req.getCanSeedlings());
+        crop.setCanDirectSow(req.getCanDirectSow());
+        crop.setPhotoPath(req.getPhotoPath());
+        
+        // НОВЫЕ ПОЛЯ
+        crop.setVariety(req.getVariety());
+        crop.setWateringInterval(req.getWateringInterval());
+        crop.setFertilizingInterval(req.getFertilizingInterval());
+        crop.setSoilCareInterval(req.getSoilCareInterval());
+        crop.setProtectionInterval(req.getProtectionInterval());
+    }
     
-    // 6. Удалить растение
     @DeleteMapping("/crops/{id}")
     public ResponseEntity<Map<String, Object>> deleteCrop(@PathVariable Integer id) {
         Map<String, Object> response = new HashMap<>();
-        
         try {
-            Crop crop = cropRepository.findById(id).orElse(null);
-            if (crop == null) {
+            if (!cropRepository.existsById(id)) {
                 response.put("success", false);
-                response.put("error", "Растение с ID " + id + " не найдено");
                 return ResponseEntity.status(404).body(response);
             }
-            
-            // ПЕРВОЕ РЕШЕНИЕ: Удаляем все связи user_crops перед удалением растения
-            System.out.println("Пытаюсь удалить растение ID: " + id);
-            
-            // Используем userCropRepository (переменную) вместо UserCropRepository (класса)
             List<UserCrop> userCrops = userCropRepository.findByCropId(id);
-            System.out.println("Найдено связанных записей в user_crops: " + userCrops.size());
+            if (!userCrops.isEmpty()) userCropRepository.deleteAll(userCrops);
             
-            if (!userCrops.isEmpty()) {
-                userCropRepository.deleteAll(userCrops);
-                System.out.println("Удалено записей из user_crops: " + userCrops.size());
-            }
-            
-            // Удаляем само растение
             cropRepository.deleteById(id);
-            
             response.put("success", true);
-            response.put("message", "Растение успешно удалено");
-            response.put("cropId", id);
-            response.put("deletedUserCropsCount", userCrops.size());
-            
-            System.out.println("Растение ID " + id + " успешно удалено");
-            
             return ResponseEntity.ok(response);
-            
         } catch (Exception e) {
-            System.out.println("Ошибка удаления растения: " + e.getMessage());
-            e.printStackTrace();
-            
             response.put("success", false);
-            response.put("error", "Ошибка при удалении: " + e.getMessage());
-            
             return ResponseEntity.status(500).body(response);
         }
     }
-    
-    // 7. Тест
-    @GetMapping("/test")
-    public String test() {
-        return "API работает!";
-    }
-    
-    // Вспомогательный класс для запроса
+
+    // ОБНОВЛЕННЫЙ CropRequest со всеми полями
     public static class CropRequest {
         private String name;
         private String category;
@@ -242,77 +163,73 @@ public class CropController {
         private Boolean canDirectSow;
         private String photoPath;
         
-        // Геттеры и сеттеры
+        // Поля, которые вы добавили в БД
+        private String variety;
+        private Integer wateringInterval;
+        private Integer fertilizingInterval;
+        private Integer soilCareInterval;
+        private Integer protectionInterval;
+
+        // Геттеры и сеттеры для новых полей
+        public String getVariety() { return variety; }
+        public void setVariety(String variety) { this.variety = variety; }
+
+        public Integer getWateringInterval() { return wateringInterval; }
+        public void setWateringInterval(Integer wateringInterval) { this.wateringInterval = wateringInterval; }
+
+        public Integer getFertilizingInterval() { return fertilizingInterval; }
+        public void setFertilizingInterval(Integer fertilizingInterval) { this.fertilizingInterval = fertilizingInterval; }
+
+        public Integer getSoilCareInterval() { return soilCareInterval; }
+        public void setSoilCareInterval(Integer soilCareInterval) { this.soilCareInterval = soilCareInterval; }
+
+        public Integer getProtectionInterval() { return protectionInterval; }
+        public void setProtectionInterval(Integer protectionInterval) { this.protectionInterval = protectionInterval; }
+
+        // Существующие геттеры и сеттеры (оставьте как были)
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
-        
         public String getCategory() { return category; }
         public void setCategory(String category) { this.category = category; }
-        
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
-        
         public Float getMinTemp() { return minTemp; }
         public void setMinTemp(Float minTemp) { this.minTemp = minTemp; }
-        
         public Float getMaxTemp() { return maxTemp; }
         public void setMaxTemp(Float maxTemp) { this.maxTemp = maxTemp; }
-        
         public Float getMaxWind() { return maxWind; }
         public void setMaxWind(Float maxWind) { this.maxWind = maxWind; }
-        
         public Integer getMinHumidity() { return minHumidity; }
         public void setMinHumidity(Integer minHumidity) { this.minHumidity = minHumidity; }
-        
         public Integer getMaxHumidity() { return maxHumidity; }
         public void setMaxHumidity(Integer maxHumidity) { this.maxHumidity = maxHumidity; }
-        
         public Float getNeededPrecipitation() { return neededPrecipitation; }
-        public void setNeededPrecipitation(Float neededPrecipitation) { 
-            this.neededPrecipitation = neededPrecipitation; 
-        }
-        
+        public void setNeededPrecipitation(Float neededPrecipitation) { this.neededPrecipitation = neededPrecipitation; }
         public Integer getSowingDepth() { return sowingDepth; }
         public void setSowingDepth(Integer sowingDepth) { this.sowingDepth = sowingDepth; }
-        
         public Integer getDaysToGermination() { return daysToGermination; }
-        public void setDaysToGermination(Integer daysToGermination) { 
-            this.daysToGermination = daysToGermination; 
-        }
-        
+        public void setDaysToGermination(Integer daysToGermination) { this.daysToGermination = daysToGermination; }
         public Integer getDaysToHarvest() { return daysToHarvest; }
         public void setDaysToHarvest(Integer daysToHarvest) { this.daysToHarvest = daysToHarvest; }
-        
         public Boolean getCanSeedlings() { return canSeedlings; }
         public void setCanSeedlings(Boolean canSeedlings) { this.canSeedlings = canSeedlings; }
-        
         public Boolean getCanDirectSow() { return canDirectSow; }
         public void setCanDirectSow(Boolean canDirectSow) { this.canDirectSow = canDirectSow; }
-        
         public String getPhotoPath() { return photoPath; }
         public void setPhotoPath(String photoPath) { this.photoPath = photoPath; }
     }
 
-   @GetMapping("/crops/compatibility")
+    @GetMapping("/crops/compatibility")
     public ResponseEntity<List<CompatibilityDTO>> getCompatibilityMatrix() {
         List<Object[]> rawData = compatibilityRepository.getRawMatrix();
-        
         List<CompatibilityDTO> result = rawData.stream()
             .map(row -> {
-                // Исправленные индексы согласно SQL процедуре:
-                // row[1] - name1, row[3] - name2, row[4] - compStatus
                 String crop1 = String.valueOf(row[1]); 
                 String crop2 = String.valueOf(row[3]);
-                
-                Integer status = 1; // Значение по умолчанию
-                if (row[4] != null) {
-                    status = ((Number) row[4]).intValue();
-                }
-
+                Integer status = (row[4] != null) ? ((Number) row[4]).intValue() : 1;
                 return new CompatibilityDTO(crop1, crop2, status);
             })
             .collect(Collectors.toList());
-            
         return ResponseEntity.ok(result);
     }
 }
