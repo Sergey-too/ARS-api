@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/api/crops")
 @CrossOrigin(origins = "*")
@@ -19,6 +21,7 @@ public class UserCropController {
     @Autowired private AreaRepository areaRepository;
     @Autowired private CropRepository cropRepository;
     @Autowired private IndividualUserCropRepository individualRepo;
+    @Autowired private GardenHistoryRepository historyRepository;
 
     // 1. Добавление растения пользователю
     @PostMapping("/user/add")
@@ -129,6 +132,28 @@ public class UserCropController {
             }
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @GetMapping("/user/{userId}/available")
+    public ResponseEntity<List<UserCrop>> getAvailableToPlant(@PathVariable Integer userId) {
+        try {
+            List<UserCrop> allMyCrops = userCropRepository.findByUserIdWithDetails(userId);
+            
+            List<String> plantedNames = historyRepository.findAllPlantedCropNames();
+
+            List<UserCrop> available = allMyCrops.stream()
+                .filter(uc -> {
+                    String name = (uc.getCrop() != null) ? uc.getCrop().getName() : 
+                                 (uc.getIndividualCrop() != null ? uc.getIndividualCrop().getName() : "");
+                    return !plantedNames.contains(name);
+                })
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok(available);
+        } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(500).build();
         }
     }

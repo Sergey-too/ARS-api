@@ -31,7 +31,7 @@ public class UserController {
     public ResponseEntity<?> toggleBan(@PathVariable("id") Integer id) {
         return userRepository.findById(id).map(user -> {
             user.setInBan(!user.isInBan());
-            userRepository.save(user);
+            userRepository.save(user);  
             return ResponseEntity.ok().build();
         }).orElse(ResponseEntity.notFound().build());
     }

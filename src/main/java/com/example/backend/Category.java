@@ -28,14 +28,12 @@ public class Category {
     @JsonIgnore
     private List<Crop> crops;
     
-    // Конструкторы
     public Category() {}
     
     public Category(String name) {
         this.name = name;
     }
     
-    // Геттеры и сеттеры
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
     
