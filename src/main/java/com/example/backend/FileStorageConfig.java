@@ -30,7 +30,6 @@ public class FileStorageConfig {
         createDirectory(cropsPath + "/default");
         createDirectory(usersPath);
         
-        // Копируй дефолтные фото если их нет
         copyDefaultImages();
     }
     
@@ -43,7 +42,6 @@ public class FileStorageConfig {
     }
     
     private void copyDefaultImages() {
-        // Можно добавить копирование дефолтных изображений
-        // из resources/static/images в uploads/crops/default/
+
     }
 }

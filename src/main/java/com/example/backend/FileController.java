@@ -74,15 +74,12 @@ public class FileController {
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
     
-    // Загрузка фото растения
     @PostMapping("/upload/crop")
     public ResponseEntity<String> uploadCropImage(@RequestParam("file") MultipartFile file,
                                                   @RequestParam(value = "category", required = false) String category) {
         try {
-            // Определяем папку по категории
             String folder = "crops/";
             if (category != null && !category.isEmpty()) {
-                // Приводим к нижнему регистру и убираем пробелы
                 String cleanCategory = category.toLowerCase().trim();
                 folder += cleanCategory + "/";
             } else {
@@ -97,7 +94,6 @@ public class FileController {
         }
     }
     
-    // Загрузка фото пользователя
     @PostMapping("/upload/user")
     public ResponseEntity<String> uploadUserImage(@RequestParam("file") MultipartFile file,
                                                   @RequestParam("userId") Integer userId) {
@@ -109,15 +105,12 @@ public class FileController {
             return ResponseEntity.badRequest().body("Ошибка загрузки файла: " + e.getMessage());
         }
     }
-    
-    // Универсальный метод загрузки
+ 
     private ResponseEntity<String> uploadFile(MultipartFile file, String subfolder) throws IOException {
-        // Проверяем размер файла
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Файл пустой");
         }
         
-        // Создаем уникальное имя
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
             originalFilename = "file";
@@ -130,25 +123,20 @@ public class FileController {
         
         String filename = UUID.randomUUID().toString() + fileExtension;
         
-        // Полный путь с подпапкой
         String fullPath = subfolder + filename;
         Path path = Paths.get(uploadDir).resolve(fullPath);
         
-        // Создаем папки если их нет
         Files.createDirectories(path.getParent());
         
-        // Сохраняем файл
         Files.write(path, file.getBytes());
-        
-        // Возвращаем относительный URL для доступа
+
         String fileUrl = "/uploads/" + fullPath;
         System.out.println("File uploaded: " + path.toAbsolutePath());
         System.out.println("File URL: " + fileUrl);
         
         return ResponseEntity.ok(fileUrl);
     }
-    
-    // Получение файла
+
     @GetMapping("/uploads/{filename:.+}")
     @ResponseBody
     public ResponseEntity<Resource> getFile(@PathVariable String filename) {
@@ -187,7 +175,6 @@ public class FileController {
         try {
             System.out.println("=== FileController.getImageFile: " + filename + " ===");
             
-            // Пробуем разные пути
             String[] testPaths = {
                 "uploads/crops/" + filename,
                 "uploads/" + filename,
@@ -215,7 +202,6 @@ public class FileController {
             System.out.println("Found file: " + foundFile.getAbsolutePath());
             byte[] imageBytes = java.nio.file.Files.readAllBytes(foundFile.toPath());
             
-            // Определяем Content-Type
             String contentType = "image/jpeg";
             String fileName = foundFile.getName().toLowerCase();
             if (fileName.endsWith(".png")) {
