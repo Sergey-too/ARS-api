@@ -21,4 +21,17 @@ public interface GardenHistoryRepository extends JpaRepository<GardenHistory, In
     Optional<GardenHistory> findTopByCropNameAndVarietyAndActionTypeIdOrderByDoneAtDesc(
         String cropName, String variety, Integer actionTypeId
     );
+
+    @Query("SELECT h FROM GardenHistory h WHERE " +
+       "h.cropName IN (SELECT c.name FROM Crop c JOIN UserCrop uc ON uc.cropId = c.id WHERE uc.userId = :userId) OR " +
+       "h.cropName IN (SELECT ic.name FROM IndividualUserCrop ic JOIN UserCrop uc ON uc.individualCropId = ic.id WHERE uc.userId = :userId) " +
+       "ORDER BY h.doneAt DESC")
+
+    List<GardenHistory> findAllByUserId(@Param("userId") Integer userId);
+
+    Optional<GardenHistory> findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(String cropName, Integer actionTypeId);
+
+    List<GardenHistory> findByActionTypeId(Integer actionTypeId);
+
+    boolean existsByUserIdAndAreaNameAndCropNameAndActionTypeId(Integer userId, String areaName, String cropName, Integer actionTypeId);
 }

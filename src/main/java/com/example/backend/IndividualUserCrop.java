@@ -37,7 +37,6 @@ public class IndividualUserCrop {
     @Column(name = "local_photo_path", length = 500) private String localPhotoPath;
     @Column(name = "category_id") private Integer categoryId;
 
-    // Поля интервалов ухода (в днях)
     @Column(name = "watering_interval") private Integer wateringInterval = 3;
     @Column(name = "fertilizing_interval") private Integer fertilizingInterval = 14;
     @Column(name = "soil_care_interval") private Integer soilCareInterval = 7;
@@ -46,7 +45,6 @@ public class IndividualUserCrop {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Полный набор Геттеров и Сеттеров
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
     public Integer getUserId() { return userId; }

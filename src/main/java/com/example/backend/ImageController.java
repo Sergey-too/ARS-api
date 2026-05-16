@@ -24,11 +24,10 @@ public class ImageController {
         try {
             System.out.println("=== GET IMAGE: " + filename + " ===");
             
-            // 1. Проверяем разные варианты путей
             String[] possiblePaths = {
-                "uploads/" + filename,           // uploads/crops/woods/pear.jpg
-                "uploads/crops/" + filename,     // uploads/crops/crops/woods/pear.jpg (если filename начинается с crops/)
-                filename                          // crops/woods/pear.jpg напрямую
+                "uploads/" + filename,          
+                "uploads/crops/" + filename,     
+                filename                       
             };
             
             File file = null;
@@ -49,13 +48,11 @@ public class ImageController {
                 return ResponseEntity.notFound().build();
             }
             
-            // 2. Создаем Resource из файла
             Path filePath = file.toPath();
             Resource resource = new UrlResource(filePath.toUri());
             
             if (resource.exists()) {
-                // 3. Определяем Content-Type
-                String contentType = "image/jpeg"; // по умолчанию
+                String contentType = "image/jpeg";
                 
                 String fileName = file.getName().toLowerCase();
                 if (fileName.endsWith(".png")) {
@@ -68,8 +65,7 @@ public class ImageController {
                 
                 System.out.println("✓ Serving file: " + file.getAbsolutePath() + 
                                  " (" + file.length() + " bytes, " + contentType + ")");
-                
-                // 4. Возвращаем файл
+
                 return ResponseEntity.ok()
                         .contentType(MediaType.valueOf(contentType))
                         .header(HttpHeaders.CACHE_CONTROL, "max-age=86400") // Кеширование на 24 часа
@@ -87,8 +83,7 @@ public class ImageController {
             return ResponseEntity.internalServerError().build();
         }
     }
-    
-    // Дополнительный метод для тестирования
+
     @GetMapping("/img/test/{filename}")
     public ResponseEntity<String> testImage(@PathVariable String filename) {
         StringBuilder result = new StringBuilder();

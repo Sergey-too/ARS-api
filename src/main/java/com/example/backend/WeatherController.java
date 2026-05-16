@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+
 @RestController
 @RequestMapping("/api/weather")
 public class WeatherController {
@@ -188,5 +189,32 @@ public class WeatherController {
         }
 
         return dtos; 
+    }
+
+    @GetMapping("/by-date/{regionId}/{date}")
+    public ResponseEntity<WeatherData> getWeatherByDate(@PathVariable Integer regionId, @PathVariable String date) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            Weather weather = weatherRepository.findByRegionIdAndDate(regionId, localDate);
+            
+            if (weather == null) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            WeatherData data = new WeatherData();
+            data.setDate(weather.getDate().toString());
+            data.setTemperatureMin(weather.getTemperatureMin());
+            data.setTemperatureMax(weather.getTemperatureMax());
+            data.setHumidityMin(weather.getHumidityMin());
+            data.setHumidityMax(weather.getHumidityMax());
+            data.setPrecipitation(weather.getPrecipitation());
+            data.setWindMin(weather.getWindMin());
+            data.setWindMax(weather.getWindMax());
+            data.setPressure(weather.getPressure());
+            
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

@@ -30,7 +30,6 @@ public class GardenTaskDto {
         this.isOverdue = dueDate != null && dueDate.isBefore(LocalDate.now()) && lastDoneAt == null;
     }
     
-    // Геттеры
     public Integer getUserCropId() { return userCropId; }
     public String getCropName() { return cropName; }
     public String getVariety() { return variety; }

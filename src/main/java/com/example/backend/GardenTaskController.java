@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -75,6 +76,49 @@ public class GardenTaskController {
             task.put("isOverdue", nextDueDate.isBefore(today));
             
             tasks.add(task);
+        }
+    }
+
+    @PostMapping("/complete")
+    public ResponseEntity<Map<String, Object>> completeTask(@RequestBody Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String cropName = (String) request.get("cropName");
+            String variety = (String) request.get("variety");
+            String areaName = (String) request.get("areaName");
+            Integer actionTypeId = (Integer) request.get("actionTypeId");
+            
+            Optional<GardenHistory> planting = historyRepository
+                .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(cropName, 1);
+            
+            if (planting.isEmpty()) {
+                response.put("success", false);
+                response.put("error", "Растение не найдено в истории посадок");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            GardenHistory history = new GardenHistory();
+            history.setActionTypeId(actionTypeId);
+            history.setDoneAt(LocalDateTime.now());
+            history.setCropName(cropName);
+            history.setVariety(variety != null ? variety : planting.get().getVariety());
+            history.setAreaName(areaName);
+            
+            // Копируем интервалы из записи о посадке
+            history.setWateringInterval(planting.get().getWateringInterval());
+            history.setFertilizingInterval(planting.get().getFertilizingInterval());
+            history.setSoilCareInterval(planting.get().getSoilCareInterval());
+            history.setProtectionInterval(planting.get().getProtectionInterval());
+            
+            historyRepository.save(history);
+            
+            response.put("success", true);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
         }
     }
 }
