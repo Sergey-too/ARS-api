@@ -41,6 +41,9 @@ public class GardenHistory {
     @Column(name = "protection_interval")
     private Integer protectionInterval;
 
+    @Column(name = "days_to_harvest")
+    private Integer daysToHarvest;
+
     public GardenHistory() {}
 
     public Integer getId() { return id; }
@@ -75,4 +78,7 @@ public class GardenHistory {
 
     public Integer getUserId() {return userId;}
     public void setUserId(Integer userId) {this.userId = userId;}
+
+    public Integer getDaysToHarvest() { return daysToHarvest; }
+    public void setDaysToHarvest(Integer daysToHarvest) { this.daysToHarvest = daysToHarvest; }
 }

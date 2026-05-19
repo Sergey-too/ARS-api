@@ -10,6 +10,12 @@ public class CompatibilityDTO {
         this.crop2 = crop2;
         this.status = status;
     }
+    public CompatibilityDTO() {
+    }
+
+    public void setCrop1(String crop1) { this.crop1 = crop1; }
+    public void setCrop2(String crop2) { this.crop2 = crop2; }
+    public void setStatus(Integer status) { this.status = status; }
 
     public String getCrop1() { return crop1; }
     public String getCrop2() { return crop2; }

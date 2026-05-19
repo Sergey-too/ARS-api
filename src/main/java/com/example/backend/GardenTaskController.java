@@ -7,13 +7,40 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 
 @RestController
 @RequestMapping("/api/tasks")
+@CrossOrigin(origins = "*")
 public class GardenTaskController {
 
     @Autowired 
     private GardenHistoryRepository historyRepository;
+
+    private enum ActionTypeEnum {
+        PLANTING(1, "Посадка", null),
+        WATERING(2, "Полив", GardenHistory::getWateringInterval),
+        FERTILIZING(3, "Удобрение", GardenHistory::getFertilizingInterval),
+        SOIL_CARE(4, "Уход за почвой", GardenHistory::getSoilCareInterval),
+        PROTECTION(5, "Защитная обработка", GardenHistory::getProtectionInterval),
+        HARVEST(6, "Сбор урожая", GardenHistory::getDaysToHarvest); 
+
+        private final int id;
+        private final String displayName;
+        private final Function<GardenHistory, Integer> intervalExtractor;
+
+        ActionTypeEnum(int id, String displayName, Function<GardenHistory, Integer> intervalExtractor) {
+            this.id = id;
+            this.displayName = displayName;
+            this.intervalExtractor = intervalExtractor;
+        }
+
+        public int getId() { return id; }
+        public String getDisplayName() { return displayName; }
+        public Integer getInterval(GardenHistory plant) {
+            return intervalExtractor != null ? intervalExtractor.apply(plant) : null;
+        }
+    }
 
     @GetMapping("/user/{userId}/weekly")
     public ResponseEntity<List<Map<String, Object>>> getWeeklyTasks(@PathVariable Integer userId) {
@@ -24,38 +51,35 @@ public class GardenTaskController {
         List<GardenHistory> activePlantings = historyRepository.findAllPlantingsByUserId(userId);
 
         for (GardenHistory plant : activePlantings) {
-            
-            checkAndAddTask(tasks, plant, 2, "Полив", plant.getWateringInterval(), today, weekLater);
-            
+            for (ActionTypeEnum action : ActionTypeEnum.values()) {
+                if (action == ActionTypeEnum.PLANTING) continue;
 
-            checkAndAddTask(tasks, plant, 3, "Удобрение", plant.getFertilizingInterval(), today, weekLater);
-            
-
-            checkAndAddTask(tasks, plant, 4, "Рыхление", plant.getSoilCareInterval(), today, weekLater);
-            checkAndAddTask(tasks, plant, 5, "Защита", plant.getProtectionInterval(), today, weekLater);
+                if (action == ActionTypeEnum.HARVEST) {
+                    checkAndAddHarvestTask(tasks, plant, action, today, weekLater);
+                } else {
+                    checkAndAddCyclicTask(tasks, plant, action, today, weekLater);
+                }
+            }
         }
 
         tasks.sort(Comparator.comparing(t -> (String) t.get("dueDate")));
-
         return ResponseEntity.ok(tasks);
     }
 
-
-    private void checkAndAddTask(List<Map<String, Object>> tasks, 
-                                 GardenHistory plant, 
-                                 int actionTypeId, 
-                                 String actionName, 
-                                 Integer interval, 
-                                 LocalDate today, 
-                                 LocalDate weekLater) {
+    private void checkAndAddCyclicTask(List<Map<String, Object>> tasks, 
+                                       GardenHistory plant, 
+                                       ActionTypeEnum action, 
+                                       LocalDate today, 
+                                       LocalDate weekLater) {
         
+        Integer interval = action.getInterval(plant);
         if (interval == null || interval <= 0) return;
 
         Optional<GardenHistory> lastAction = historyRepository
             .findTopByCropNameAndVarietyAndActionTypeIdOrderByDoneAtDesc(
                 plant.getCropName(), 
                 plant.getVariety(), 
-                actionTypeId
+                action.getId()
             );
 
         LocalDate lastDoneDate = lastAction
@@ -65,18 +89,47 @@ public class GardenTaskController {
         LocalDate nextDueDate = lastDoneDate.plusDays(interval);
 
         if (!nextDueDate.isAfter(weekLater)) {
-            Map<String, Object> task = new HashMap<>();
-            task.put("cropName", plant.getCropName());
-            task.put("variety", plant.getVariety());
-            task.put("areaName", plant.getAreaName());
-            task.put("actionName", actionName);
-            task.put("actionTypeId", actionTypeId);
-            task.put("dueDate", nextDueDate.toString());
-
-            task.put("isOverdue", nextDueDate.isBefore(today));
-            
-            tasks.add(task);
+            tasks.add(buildTaskMap(plant, action, nextDueDate, today));
         }
+    }
+
+    private void checkAndAddHarvestTask(List<Map<String, Object>> tasks, 
+                                        GardenHistory plant, 
+                                        ActionTypeEnum action, 
+                                        LocalDate today, 
+                                        LocalDate weekLater) {
+        
+        Integer daysToHarvest = action.getInterval(plant);
+        if (daysToHarvest == null || daysToHarvest <= 0) return;
+
+        LocalDate plantingDate = plant.getDoneAt().toLocalDate();
+        LocalDate harvestDate = plantingDate.plusDays(daysToHarvest);
+
+        Optional<GardenHistory> alreadyHarvested = historyRepository
+            .findTopByCropNameAndVarietyAndActionTypeIdOrderByDoneAtDesc(
+                plant.getCropName(), 
+                plant.getVariety(), 
+                action.getId()
+            );
+
+        if (alreadyHarvested.isPresent()) return;
+
+        if (!harvestDate.isAfter(weekLater)) {
+            tasks.add(buildTaskMap(plant, action, harvestDate, today));
+        }
+    }
+
+
+    private Map<String, Object> buildTaskMap(GardenHistory plant, ActionTypeEnum action, LocalDate dueDate, LocalDate today) {
+        Map<String, Object> task = new HashMap<>();
+        task.put("cropName", plant.getCropName());
+        task.put("variety", plant.getVariety());
+        task.put("areaName", plant.getAreaName());
+        task.put("actionName", action.getDisplayName()); 
+        task.put("actionTypeId", action.getId());
+        task.put("dueDate", dueDate.toString());
+        task.put("isOverdue", dueDate.isBefore(today));
+        return task;
     }
 
     @PostMapping("/complete")
@@ -89,7 +142,7 @@ public class GardenTaskController {
             Integer actionTypeId = (Integer) request.get("actionTypeId");
             
             Optional<GardenHistory> planting = historyRepository
-                .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(cropName, 1);
+                .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(cropName, ActionTypeEnum.PLANTING.getId());
             
             if (planting.isEmpty()) {
                 response.put("success", false);
@@ -104,11 +157,11 @@ public class GardenTaskController {
             history.setVariety(variety != null ? variety : planting.get().getVariety());
             history.setAreaName(areaName);
             
-            // Копируем интервалы из записи о посадке
             history.setWateringInterval(planting.get().getWateringInterval());
             history.setFertilizingInterval(planting.get().getFertilizingInterval());
             history.setSoilCareInterval(planting.get().getSoilCareInterval());
             history.setProtectionInterval(planting.get().getProtectionInterval());
+            history.setDaysToHarvest(planting.get().getDaysToHarvest()); 
             
             historyRepository.save(history);
             

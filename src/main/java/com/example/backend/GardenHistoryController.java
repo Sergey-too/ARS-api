@@ -23,14 +23,12 @@ public class GardenHistoryController {
             UserCrop uc = userCropRepository.findById(userCropId)
                     .orElseThrow(() -> new RuntimeException("Культура не найдена"));
 
-            // Получаем userId хозяина грядки
             Integer userId = uc.getUserId(); 
             String areaName = (uc.getArea() != null) ? uc.getArea().getName() : "Участок";
             
             String name = (uc.getCrop() != null) ? uc.getCrop().getName() : 
                     (uc.getIndividualCrop() != null ? uc.getIndividualCrop().getName() : "Неизвестно");
 
-            // ИСПРАВЛЕНО: Проверяем, посажено ли растение с таким именем У ЭТОГО пользователя НА ЭТОМ участке
             boolean alreadyPlanted = historyRepository.existsByUserIdAndAreaNameAndCropNameAndActionTypeId(
                     userId, areaName, name, 1
             );
@@ -39,9 +37,8 @@ public class GardenHistoryController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Это растение уже посажено на данном участке!"));
             }
 
-            // Создаем запись истории
             GardenHistory history = new GardenHistory();
-            history.setUserId(userId); // ИСПРАВЛЕНО: Привязываем к пользователю!
+            history.setUserId(userId);
             history.setActionTypeId(1); 
             history.setDoneAt(LocalDateTime.now());
             history.setAreaName(areaName);
@@ -54,9 +51,11 @@ public class GardenHistoryController {
                 history.setFertilizingInterval(c.getFertilizingInterval());
                 history.setSoilCareInterval(c.getSoilCareInterval());
                 history.setProtectionInterval(c.getProtectionInterval());
+                history.setDaysToHarvest(c.getDaysToHarvest()); // ВОТ ЭТА СТРОКА
             } else if (uc.getIndividualCrop() != null) {
                 history.setVariety(uc.getIndividualCrop().getVariety());
                 history.setWateringInterval(7); 
+                history.setDaysToHarvest(60); 
             }
 
             historyRepository.save(history);
@@ -74,7 +73,6 @@ public class GardenHistoryController {
 
     @GetMapping("/user/{userId}/planting")
     public ResponseEntity<List<GardenHistory>> getPlantingHistory(@PathVariable Integer userId) {
-        // ИСПРАВЛЕНО: Ищем историю только конкретного пользователя, а не findAll() для всех
         List<GardenHistory> userHistory = historyRepository.findAllByUserId(userId);
         
         List<GardenHistory> plantingHistory = userHistory.stream()
