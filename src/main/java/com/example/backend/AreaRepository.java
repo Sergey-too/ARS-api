@@ -5,4 +5,6 @@ import java.util.List;
 
 public interface AreaRepository extends JpaRepository<Area, Integer> {
     List<Area> findByUserId(Integer userId);
+
+    List<Area> findByRegionId(Integer regionId);
 }
