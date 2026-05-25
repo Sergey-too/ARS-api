@@ -23,31 +23,31 @@ public class Weather {
     private LocalDate date;
     
     @Column(name = "temperature_min")
-    private String temperatureMin;
+    private Short temperatureMin;    
     
     @Column(name = "temperature_max")
-    private String temperatureMax;
+    private Short temperatureMax;     
     
     @Column(name = "humidity_min")
-    private String humidityMin;
+    private Short humidityMin;        
     
     @Column(name = "humidity_max")
-    private String humidityMax;
+    private Short humidityMax;       
     
     @Column(name = "precipitation")
-    private String precipitation;
+    private Float precipitation;      
     
     @Column(name = "wind_min")
-    private String windMin;
+    private Short windMin;            
     
     @Column(name = "wind_max")
-    private String windMax;
+    private Short windMax;            
     
     @Column(name = "gusts_of_wind")
-    private String gustsOfWind;
+    private Short gustsOfWind;
     
     @Column(name = "pressure")
-    private String pressure;
+    private Short pressure;            
 
     public Weather() {}
 
@@ -61,30 +61,30 @@ public class Weather {
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
 
-    public String getTemperatureMin() { return temperatureMin; }
-    public void setTemperatureMin(String temperatureMin) { this.temperatureMin = temperatureMin; }
+    public Short getTemperatureMin() { return temperatureMin; }
+    public void setTemperatureMin(Short temperatureMin) { this.temperatureMin = temperatureMin; }
 
-    public String getTemperatureMax() { return temperatureMax; }
-    public void setTemperatureMax(String temperatureMax) { this.temperatureMax = temperatureMax; }
+    public Short getTemperatureMax() { return temperatureMax; }
+    public void setTemperatureMax(Short temperatureMax) { this.temperatureMax = temperatureMax; }
 
-    public String getHumidityMin() { return humidityMin; }
-    public void setHumidityMin(String humidityMin) { this.humidityMin = humidityMin; }
+    public Short getHumidityMin() { return humidityMin; }
+    public void setHumidityMin(Short humidityMin) { this.humidityMin = humidityMin; }
 
-    public String getHumidityMax() { return humidityMax; }
-    public void setHumidityMax(String humidityMax) { this.humidityMax = humidityMax; }
+    public Short getHumidityMax() { return humidityMax; }
+    public void setHumidityMax(Short humidityMax) { this.humidityMax = humidityMax; }
 
-    public String getPrecipitation() { return precipitation; }
-    public void setPrecipitation(String precipitation) { this.precipitation = precipitation; }
+    public Float getPrecipitation() { return precipitation; }
+    public void setPrecipitation(Float precipitation) { this.precipitation = precipitation; }
 
-    public String getWindMin() { return windMin; }
-    public void setWindMin(String windMin) { this.windMin = windMin; }
+    public Short getWindMin() { return windMin; }
+    public void setWindMin(Short windMin) { this.windMin = windMin; }
 
-    public String getWindMax() { return windMax; }
-    public void setWindMax(String windMax) { this.windMax = windMax; }
+    public Short getWindMax() { return windMax; }
+    public void setWindMax(Short windMax) { this.windMax = windMax; }
 
-    public String getGustsOfWind() { return gustsOfWind; }
-    public void setGustsOfWind(String gustsOfWind) { this.gustsOfWind = gustsOfWind; }
+    public Short getGustsOfWind() { return gustsOfWind; }
+    public void setGustsOfWind(Short gustsOfWind) { this.gustsOfWind = gustsOfWind; }
 
-    public String getPressure() { return pressure; }
-    public void setPressure(String pressure) { this.pressure = pressure; }
+    public Short getPressure() { return pressure; }
+    public void setPressure(Short pressure) { this.pressure = pressure; }
 }

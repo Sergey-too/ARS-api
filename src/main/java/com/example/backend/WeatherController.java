@@ -56,14 +56,11 @@ public class WeatherController {
         
         return response;
     }
-
-    // ============ НОВЫЙ ЭНДПОИНТ ДЛЯ ANDROID (ПО ID РЕГИОНА) ============
     
     @GetMapping("/region/{regionId}")
     public ResponseEntity<Map<String, Object>> getWeatherByRegionId(@PathVariable Integer regionId) {
         Map<String, Object> response = new HashMap<>();
         
-        // Находим регион по ID
         Region region = regionRepository.findById(regionId).orElse(null);
         if (region == null) {
             response.put("error", "Регион не найден");
@@ -86,8 +83,6 @@ public class WeatherController {
         
         return ResponseEntity.ok(response);
     }
-
-    // ============ ЭНДПОИНТЫ ДЛЯ АДМИНКИ ============
     
     @GetMapping("/all")
     public ResponseEntity<List<Map<String, Object>>> getAllWeather() {
@@ -128,32 +123,30 @@ public class WeatherController {
         }
     }
 
-    // ============ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ============
-
     private List<Map<String, Object>> convertToAndroidFormat(List<Weather> weatherList) {
-        List<Map<String, Object>> result = new ArrayList<>();
+    List<Map<String, Object>> result = new ArrayList<>();
+    
+    for (Weather w : weatherList) {
+        Map<String, Object> map = new HashMap<>();
+
+        map.put("date", w.getDate().toString());
+        map.put("pressure", w.getPressure() != null ? w.getPressure().toString() : "0");
+
+        map.put("temperatureMin", w.getTemperatureMin() != null ? w.getTemperatureMin().doubleValue() : 0.0);
+        map.put("temperatureMax", w.getTemperatureMax() != null ? w.getTemperatureMax().doubleValue() : 0.0);
         
-        for (Weather w : weatherList) {
-            Map<String, Object> map = new HashMap<>();
+        map.put("humidityMin", w.getHumidityMin() != null ? w.getHumidityMin().doubleValue() : 0.0);
+        map.put("humidityMax", w.getHumidityMax() != null ? w.getHumidityMax().doubleValue() : 0.0);
+        
+        map.put("windMin", w.getWindMin() != null ? w.getWindMin().doubleValue() : 0.0);
+        map.put("windMax", w.getWindMax() != null ? w.getWindMax().doubleValue() : 0.0);
+        
+        map.put("precipitation", w.getPrecipitation() != null ? w.getPrecipitation().doubleValue() : 0.0);
 
-            map.put("date", w.getDate().toString());
-            map.put("pressure", w.getPressure());
-
-            map.put("temperatureMin", parseDoubleSafe(w.getTemperatureMin()));
-            map.put("temperatureMax", parseDoubleSafe(w.getTemperatureMax()));
-            
-            map.put("humidityMin", parseDoubleSafe(w.getHumidityMin()));
-            map.put("humidityMax", parseDoubleSafe(w.getHumidityMax()));
-            
-            map.put("windMin", parseDoubleSafe(w.getWindMin()));
-            map.put("windMax", parseDoubleSafe(w.getWindMax()));
-            
-            map.put("precipitation", parseDoubleSafe(w.getPrecipitation()));
-
-            result.add(map);
-        }
-        return result;
+        result.add(map);
     }
+    return result;
+}
 
     private Double parseDoubleSafe(String value) {
         if (value == null || value.isEmpty()) {
@@ -192,29 +185,29 @@ public class WeatherController {
     }
 
     @GetMapping("/by-date/{regionId}/{date}")
-    public ResponseEntity<WeatherData> getWeatherByDate(@PathVariable Integer regionId, @PathVariable String date) {
-        try {
-            LocalDate localDate = LocalDate.parse(date);
-            Weather weather = weatherRepository.findByRegionIdAndDate(regionId, localDate);
-            
-            if (weather == null) {
-                return ResponseEntity.notFound().build();
-            }
-            
-            WeatherData data = new WeatherData();
-            data.setDate(weather.getDate().toString());
-            data.setTemperatureMin(weather.getTemperatureMin());
-            data.setTemperatureMax(weather.getTemperatureMax());
-            data.setHumidityMin(weather.getHumidityMin());
-            data.setHumidityMax(weather.getHumidityMax());
-            data.setPrecipitation(weather.getPrecipitation());
-            data.setWindMin(weather.getWindMin());
-            data.setWindMax(weather.getWindMax());
-            data.setPressure(weather.getPressure());
-            
-            return ResponseEntity.ok(data);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+public ResponseEntity<WeatherData> getWeatherByDate(@PathVariable Integer regionId, @PathVariable String date) {
+    try {
+        LocalDate localDate = LocalDate.parse(date);
+        Weather weather = weatherRepository.findByRegionIdAndDate(regionId, localDate);
+        
+        if (weather == null) {
+            return ResponseEntity.notFound().build();
         }
+        
+        WeatherData data = new WeatherData();
+        data.setDate(weather.getDate().toString());
+        data.setTemperatureMin(weather.getTemperatureMin() != null ? weather.getTemperatureMin().toString() : null);
+        data.setTemperatureMax(weather.getTemperatureMax() != null ? weather.getTemperatureMax().toString() : null);
+        data.setHumidityMin(weather.getHumidityMin() != null ? weather.getHumidityMin().toString() : null);
+        data.setHumidityMax(weather.getHumidityMax() != null ? weather.getHumidityMax().toString() : null);
+        data.setPrecipitation(weather.getPrecipitation() != null ? weather.getPrecipitation().toString() : null);
+        data.setWindMin(weather.getWindMin() != null ? weather.getWindMin().toString() : null);
+        data.setWindMax(weather.getWindMax() != null ? weather.getWindMax().toString() : null);
+        data.setPressure(weather.getPressure() != null ? weather.getPressure().toString() : null);
+        
+        return ResponseEntity.ok(data);
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().build();
     }
+}
 }
