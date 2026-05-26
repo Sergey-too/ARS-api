@@ -9,20 +9,37 @@ import java.util.Optional;
 public interface GardenHistoryRepository extends JpaRepository<GardenHistory, Integer> {
 
     @Query("SELECT h FROM GardenHistory h WHERE h.actionTypeId = 1 AND " +
-           "(h.cropName IN (SELECT c.name FROM Crop c JOIN UserCrop uc ON uc.cropId = c.id WHERE uc.userId = :userId) OR " +
-           " h.cropName IN (SELECT ic.name FROM IndividualUserCrop ic JOIN UserCrop uc ON uc.individualCropId = ic.id WHERE uc.userId = :userId))")
+           "h.cropName = :cropName AND h.variety = :variety AND h.areaName = :areaName")
+    Optional<GardenHistory> findPlantingByCropVarietyArea(
+        @Param("cropName") String cropName,
+        @Param("variety") String variety,
+        @Param("areaName") String areaName
+    );
+    
+    @Query("SELECT h FROM GardenHistory h WHERE " +
+           "h.cropName = :cropName AND " +
+           "h.variety = :variety AND " +
+           "h.areaName = :areaName AND " +
+           "h.actionTypeId = :actionTypeId " +
+           "ORDER BY h.doneAt DESC")
+    Optional<GardenHistory> findLastActionByCropVarietyAreaAndType(
+        @Param("cropName") String cropName,
+        @Param("variety") String variety,
+        @Param("areaName") String areaName,
+        @Param("actionTypeId") Integer actionTypeId
+    );
+
+    @Query("SELECT h FROM GardenHistory h WHERE h.actionTypeId = 1 AND " +
+           "h.userId = :userId")
     List<GardenHistory> findAllPlantingsByUserId(@Param("userId") Integer userId);
 
-    @Query("SELECT h FROM GardenHistory h WHERE " +
-           "h.cropName IN (SELECT c.name FROM Crop c JOIN UserCrop uc ON uc.cropId = c.id WHERE uc.userId = :userId) OR " +
-           "h.cropName IN (SELECT ic.name FROM IndividualUserCrop ic JOIN UserCrop uc ON uc.individualCropId = ic.id WHERE uc.userId = :userId) " +
-           "ORDER BY h.doneAt DESC")
+    @Query("SELECT h FROM GardenHistory h WHERE h.userId = :userId ORDER BY h.doneAt DESC")
     List<GardenHistory> findAllByUserId(@Param("userId") Integer userId);
 
-    boolean existsByUserIdAndAreaNameAndCropNameAndActionTypeId(Integer userId, String areaName, String cropName, Integer actionTypeId);
+    boolean existsByUserIdAndAreaNameAndCropNameAndActionTypeId(
+        Integer userId, String areaName, String cropName, Integer actionTypeId
+    );
 
     @Query("SELECT DISTINCT h.cropName FROM GardenHistory h WHERE h.actionTypeId = 1 AND h.userId = :userId")
     List<String> findAllPlantedCropNamesByUserId(@Param("userId") Integer userId);
-
-    Optional<GardenHistory> findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(String cropName, Integer actionTypeId);
 }

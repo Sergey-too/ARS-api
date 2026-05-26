@@ -45,9 +45,9 @@ public class GardenTaskController {
         LocalDate today = LocalDate.now();
         LocalDate weekLater = today.plusDays(7);
 
-        List<GardenHistory> activePlantings = historyRepository.findAllPlantingsByUserId(userId);
+        List<GardenHistory> plantings = historyRepository.findAllPlantingsByUserId(userId);
 
-        for (GardenHistory plant : activePlantings) {
+        for (GardenHistory plant : plantings) {
             Optional<Crop> cropOpt = cropRepository.findByName(plant.getCropName());
             if (cropOpt.isEmpty()) continue;
             
@@ -75,8 +75,10 @@ public class GardenTaskController {
         if (interval == null || interval <= 0) return;
 
         Optional<GardenHistory> lastAction = historyRepository
-            .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(
-                plant.getCropName(), 
+            .findLastActionByCropVarietyAreaAndType(
+                plant.getCropName(),
+                plant.getVariety() != null ? plant.getVariety() : "Обычный",
+                plant.getAreaName(),
                 action.getId()
             );
 
@@ -104,8 +106,10 @@ public class GardenTaskController {
         LocalDate harvestDate = plantingDate.plusDays(daysToHarvest);
 
         Optional<GardenHistory> alreadyHarvested = historyRepository
-            .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(
-                plant.getCropName(), 
+            .findLastActionByCropVarietyAreaAndType(
+                plant.getCropName(),
+                plant.getVariety() != null ? plant.getVariety() : "Обычный",
+                plant.getAreaName(),
                 ActionTypeEnum.HARVEST.getId()
             );
 
@@ -119,12 +123,26 @@ public class GardenTaskController {
     private Map<String, Object> buildTaskMap(GardenHistory plant, Crop crop, ActionTypeEnum action, LocalDate dueDate, LocalDate today) {
         Map<String, Object> task = new HashMap<>();
         task.put("cropName", plant.getCropName());
-        task.put("variety", crop.getVariety() != null ? crop.getVariety() : "Обычный");
+        task.put("variety", plant.getVariety() != null ? plant.getVariety() : "Обычный");
         task.put("areaName", plant.getAreaName());
         task.put("actionName", action.getDisplayName()); 
         task.put("actionTypeId", action.getId());
         task.put("dueDate", dueDate.toString());
         task.put("isOverdue", dueDate.isBefore(today));
+        
+        Optional<GardenHistory> lastAction = historyRepository
+            .findLastActionByCropVarietyAreaAndType(
+                plant.getCropName(),
+                plant.getVariety() != null ? plant.getVariety() : "Обычный",
+                plant.getAreaName(),
+                action.getId()
+            );
+        
+        String lastDoneAt = lastAction
+            .map(h -> h.getDoneAt().toLocalDate().toString())
+            .orElse(null);
+        task.put("lastDoneAt", lastDoneAt);
+        
         return task;
     }
 
@@ -136,9 +154,9 @@ public class GardenTaskController {
             String variety = (String) request.get("variety");
             String areaName = (String) request.get("areaName");
             Integer actionTypeId = (Integer) request.get("actionTypeId");
-     
+            
             Optional<GardenHistory> planting = historyRepository
-                .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(cropName, ActionTypeEnum.PLANTING.getId());
+                .findPlantingByCropVarietyArea(cropName, variety, areaName);
             
             if (planting.isEmpty()) {
                 response.put("success", false);
@@ -151,7 +169,7 @@ public class GardenTaskController {
             history.setActionTypeId(actionTypeId);
             history.setDoneAt(LocalDateTime.now());
             history.setCropName(cropName);
-            history.setVariety(variety != null ? variety : planting.get().getVariety());
+            history.setVariety(variety);
             history.setAreaName(areaName);
             
             historyRepository.save(history);
