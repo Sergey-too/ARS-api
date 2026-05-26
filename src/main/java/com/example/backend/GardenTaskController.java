@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.function.Function;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -16,30 +15,28 @@ public class GardenTaskController {
 
     @Autowired 
     private GardenHistoryRepository historyRepository;
+    
+    @Autowired
+    private CropRepository cropRepository;
 
     private enum ActionTypeEnum {
-        PLANTING(1, "Посадка", null),
-        WATERING(2, "Полив", GardenHistory::getWateringInterval),
-        FERTILIZING(3, "Удобрение", GardenHistory::getFertilizingInterval),
-        SOIL_CARE(4, "Уход за почвой", GardenHistory::getSoilCareInterval),
-        PROTECTION(5, "Защитная обработка", GardenHistory::getProtectionInterval),
-        HARVEST(6, "Сбор урожая", GardenHistory::getDaysToHarvest); 
+        PLANTING(1, "Посадка"),
+        WATERING(2, "Полив"),
+        FERTILIZING(3, "Удобрение"),
+        SOIL_CARE(4, "Уход за почвой"),
+        PROTECTION(5, "Защитная обработка"),
+        HARVEST(6, "Сбор урожая"); 
 
         private final int id;
         private final String displayName;
-        private final Function<GardenHistory, Integer> intervalExtractor;
 
-        ActionTypeEnum(int id, String displayName, Function<GardenHistory, Integer> intervalExtractor) {
+        ActionTypeEnum(int id, String displayName) {
             this.id = id;
             this.displayName = displayName;
-            this.intervalExtractor = intervalExtractor;
         }
 
         public int getId() { return id; }
         public String getDisplayName() { return displayName; }
-        public Integer getInterval(GardenHistory plant) {
-            return intervalExtractor != null ? intervalExtractor.apply(plant) : null;
-        }
     }
 
     @GetMapping("/user/{userId}/weekly")
@@ -51,15 +48,16 @@ public class GardenTaskController {
         List<GardenHistory> activePlantings = historyRepository.findAllPlantingsByUserId(userId);
 
         for (GardenHistory plant : activePlantings) {
-            for (ActionTypeEnum action : ActionTypeEnum.values()) {
-                if (action == ActionTypeEnum.PLANTING) continue;
-
-                if (action == ActionTypeEnum.HARVEST) {
-                    checkAndAddHarvestTask(tasks, plant, action, today, weekLater);
-                } else {
-                    checkAndAddCyclicTask(tasks, plant, action, today, weekLater);
-                }
-            }
+            Optional<Crop> cropOpt = cropRepository.findByName(plant.getCropName());
+            if (cropOpt.isEmpty()) continue;
+            
+            Crop crop = cropOpt.get();
+            
+            checkAndAddCyclicTask(tasks, plant, crop, ActionTypeEnum.WATERING, crop.getWateringInterval(), today, weekLater);
+            checkAndAddCyclicTask(tasks, plant, crop, ActionTypeEnum.FERTILIZING, crop.getFertilizingInterval(), today, weekLater);
+            checkAndAddCyclicTask(tasks, plant, crop, ActionTypeEnum.SOIL_CARE, crop.getSoilCareInterval(), today, weekLater);
+            checkAndAddCyclicTask(tasks, plant, crop, ActionTypeEnum.PROTECTION, crop.getProtectionInterval(), today, weekLater);
+            checkAndAddHarvestTask(tasks, plant, crop, crop.getDaysToHarvest(), today, weekLater);
         }
 
         tasks.sort(Comparator.comparing(t -> (String) t.get("dueDate")));
@@ -67,18 +65,18 @@ public class GardenTaskController {
     }
 
     private void checkAndAddCyclicTask(List<Map<String, Object>> tasks, 
-                                       GardenHistory plant, 
+                                       GardenHistory plant,
+                                       Crop crop,
                                        ActionTypeEnum action, 
+                                       Integer interval,
                                        LocalDate today, 
                                        LocalDate weekLater) {
         
-        Integer interval = action.getInterval(plant);
         if (interval == null || interval <= 0) return;
 
         Optional<GardenHistory> lastAction = historyRepository
-            .findTopByCropNameAndVarietyAndActionTypeIdOrderByDoneAtDesc(
+            .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(
                 plant.getCropName(), 
-                plant.getVariety(), 
                 action.getId()
             );
 
@@ -89,41 +87,39 @@ public class GardenTaskController {
         LocalDate nextDueDate = lastDoneDate.plusDays(interval);
 
         if (!nextDueDate.isAfter(weekLater)) {
-            tasks.add(buildTaskMap(plant, action, nextDueDate, today));
+            tasks.add(buildTaskMap(plant, crop, action, nextDueDate, today));
         }
     }
 
     private void checkAndAddHarvestTask(List<Map<String, Object>> tasks, 
-                                        GardenHistory plant, 
-                                        ActionTypeEnum action, 
+                                        GardenHistory plant,
+                                        Crop crop,
+                                        Integer daysToHarvest,
                                         LocalDate today, 
                                         LocalDate weekLater) {
         
-        Integer daysToHarvest = action.getInterval(plant);
         if (daysToHarvest == null || daysToHarvest <= 0) return;
 
         LocalDate plantingDate = plant.getDoneAt().toLocalDate();
         LocalDate harvestDate = plantingDate.plusDays(daysToHarvest);
 
         Optional<GardenHistory> alreadyHarvested = historyRepository
-            .findTopByCropNameAndVarietyAndActionTypeIdOrderByDoneAtDesc(
+            .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(
                 plant.getCropName(), 
-                plant.getVariety(), 
-                action.getId()
+                ActionTypeEnum.HARVEST.getId()
             );
 
         if (alreadyHarvested.isPresent()) return;
 
         if (!harvestDate.isAfter(weekLater)) {
-            tasks.add(buildTaskMap(plant, action, harvestDate, today));
+            tasks.add(buildTaskMap(plant, crop, ActionTypeEnum.HARVEST, harvestDate, today));
         }
     }
 
-
-    private Map<String, Object> buildTaskMap(GardenHistory plant, ActionTypeEnum action, LocalDate dueDate, LocalDate today) {
+    private Map<String, Object> buildTaskMap(GardenHistory plant, Crop crop, ActionTypeEnum action, LocalDate dueDate, LocalDate today) {
         Map<String, Object> task = new HashMap<>();
         task.put("cropName", plant.getCropName());
-        task.put("variety", plant.getVariety());
+        task.put("variety", crop.getVariety() != null ? crop.getVariety() : "Обычный");
         task.put("areaName", plant.getAreaName());
         task.put("actionName", action.getDisplayName()); 
         task.put("actionTypeId", action.getId());
@@ -140,7 +136,7 @@ public class GardenTaskController {
             String variety = (String) request.get("variety");
             String areaName = (String) request.get("areaName");
             Integer actionTypeId = (Integer) request.get("actionTypeId");
-            
+     
             Optional<GardenHistory> planting = historyRepository
                 .findTopByCropNameAndActionTypeIdOrderByDoneAtDesc(cropName, ActionTypeEnum.PLANTING.getId());
             
@@ -151,17 +147,12 @@ public class GardenTaskController {
             }
             
             GardenHistory history = new GardenHistory();
+            history.setUserId(planting.get().getUserId());
             history.setActionTypeId(actionTypeId);
             history.setDoneAt(LocalDateTime.now());
             history.setCropName(cropName);
             history.setVariety(variety != null ? variety : planting.get().getVariety());
             history.setAreaName(areaName);
-            
-            history.setWateringInterval(planting.get().getWateringInterval());
-            history.setFertilizingInterval(planting.get().getFertilizingInterval());
-            history.setSoilCareInterval(planting.get().getSoilCareInterval());
-            history.setProtectionInterval(planting.get().getProtectionInterval());
-            history.setDaysToHarvest(planting.get().getDaysToHarvest()); 
             
             historyRepository.save(history);
             

@@ -12,8 +12,7 @@ public class WeatherData {
     private String pressure;
     
     public WeatherData() {}
-    
-    // Геттеры
+
     public String getDate() { return date; }
     public String getTemperatureMin() { return temperatureMin; }
     public String getTemperatureMax() { return temperatureMax; }
@@ -22,9 +21,8 @@ public class WeatherData {
     public String getPrecipitation() { return precipitation; }
     public String getWindMin() { return windMin; }
     public String getWindMax() { return windMax; }
-    public String getPressure() { return pressure; }
+    public String getPressure() { return pressure; }    
     
-    // Сеттеры
     public void setDate(String date) { this.date = date; }
     public void setTemperatureMin(String temperatureMin) { this.temperatureMin = temperatureMin; }
     public void setTemperatureMax(String temperatureMax) { this.temperatureMax = temperatureMax; }

@@ -9,6 +9,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.time.LocalDate;
 
 import java.util.stream.Collectors;
 
@@ -23,20 +24,28 @@ public class UserCropController {
     @Autowired private IndividualUserCropRepository individualRepo;
     @Autowired private GardenHistoryRepository historyRepository;
 
-    // 1. Добавление растения пользователю
     @PostMapping("/user/add")
     public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
         try {
             Integer userId = (Integer) request.get("userId");
             Integer areaId = (Integer) request.get("areaId");
-            Integer cropId = (Integer) request.get("cropId"); // Системное
-            Integer individualId = (Integer) request.get("individualCropId"); // Личное
+            Integer cropId = (Integer) request.get("cropId");
+            Integer individualId = (Integer) request.get("individualCropId");
+            
+            String plantedAtStr = (String) request.get("plantedAt");
+            String harvestedAtStr = (String) request.get("harvestedAt");
 
             UserCrop userCrop = new UserCrop();
             userCrop.setUserId(userId);
             userCrop.setAreaId(areaId);
-            userCrop.setPlantedAt(LocalDateTime.now());
+
+            if (plantedAtStr != null && !plantedAtStr.isEmpty()) {
+                userCrop.setPlantedAt(LocalDate.parse(plantedAtStr));
+            }
+            if (harvestedAtStr != null && !harvestedAtStr.isEmpty()) {
+                userCrop.setHarvestedAt(LocalDate.parse(harvestedAtStr));
+            }
 
             if (cropId != null) {
                 userCrop.setCropId(cropId);
@@ -57,11 +66,9 @@ public class UserCropController {
         }
     }
 
-    // 2. Получение растений пользователя (с деталями)
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<UserCrop>> getUserCrops(@PathVariable Integer userId) {
         try {
-            // Используем метод с Join Fetch для подгрузки деталей
             List<UserCrop> userCrops = userCropRepository.findByUserIdWithDetails(userId);
             System.out.println("Найдено растений для пользователя " + userId + ": " + userCrops.size());
             return ResponseEntity.ok(userCrops);
@@ -71,12 +78,10 @@ public class UserCropController {
         }
     }
 
-    // 3. Удаление конкретного растения у пользователя
     @DeleteMapping("/user/{userId}/{userCropId}")
     public ResponseEntity<Map<String, Object>> deleteUserCrop(@PathVariable Integer userId, @PathVariable Integer userCropId) {
         Map<String, Object> response = new HashMap<>();
         try {
-            // Ищем ПО ID записи в user_crops, а не по cropId
             Optional<UserCrop> userCrop = userCropRepository.findById(userCropId);
             
             if (userCrop.isEmpty()) {
@@ -85,7 +90,6 @@ public class UserCropController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            // Проверяем, что растение принадлежит пользователю
             if (!userCrop.get().getUserId().equals(userId)) {
                 response.put("success", false);
                 response.put("error", "Доступ запрещен");
@@ -103,7 +107,6 @@ public class UserCropController {
         }
     }
 
-    // 4. Удаление ВСЕХ растений пользователя
     @DeleteMapping("/user/all/{userId}")
     public ResponseEntity<Map<String, Object>> deleteAllUserCrops(@PathVariable Integer userId) {
         Map<String, Object> response = new HashMap<>();
@@ -120,7 +123,6 @@ public class UserCropController {
         }
     }
 
-    // 5. Получение изображения
     @GetMapping("/img/{filename:.+}")
     public ResponseEntity<byte[]> getImage(@PathVariable String filename) {
         try {
@@ -141,12 +143,12 @@ public class UserCropController {
         try {
             List<UserCrop> allMyCrops = userCropRepository.findByUserIdWithDetails(userId);
             
-            List<String> plantedNames = historyRepository.findAllPlantedCropNames();
+            List<String> plantedNames = historyRepository.findAllPlantedCropNamesByUserId(userId);
 
             List<UserCrop> available = allMyCrops.stream()
                 .filter(uc -> {
                     String name = (uc.getCrop() != null) ? uc.getCrop().getName() : 
-                                 (uc.getIndividualCrop() != null ? uc.getIndividualCrop().getName() : "");
+                                (uc.getIndividualCrop() != null ? uc.getIndividualCrop().getName() : "");
                     return !plantedNames.contains(name);
                 })
                 .collect(Collectors.toList());

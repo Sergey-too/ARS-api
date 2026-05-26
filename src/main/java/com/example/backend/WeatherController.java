@@ -185,29 +185,29 @@ public class WeatherController {
     }
 
     @GetMapping("/by-date/{regionId}/{date}")
-public ResponseEntity<WeatherData> getWeatherByDate(@PathVariable Integer regionId, @PathVariable String date) {
-    try {
-        LocalDate localDate = LocalDate.parse(date);
-        Weather weather = weatherRepository.findByRegionIdAndDate(regionId, localDate);
-        
-        if (weather == null) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<WeatherData> getWeatherByDate(@PathVariable Integer regionId, @PathVariable String date) {
+        try {
+            LocalDate localDate = LocalDate.parse(date);
+            Weather weather = weatherRepository.findByRegionIdAndDate(regionId, localDate);
+            
+            if (weather == null) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            WeatherData data = new WeatherData();
+            data.setDate(weather.getDate().toString());
+            data.setTemperatureMin(weather.getTemperatureMin() != null ? weather.getTemperatureMin().toString() : null);
+            data.setTemperatureMax(weather.getTemperatureMax() != null ? weather.getTemperatureMax().toString() : null);
+            data.setHumidityMin(weather.getHumidityMin() != null ? weather.getHumidityMin().toString() : null);
+            data.setHumidityMax(weather.getHumidityMax() != null ? weather.getHumidityMax().toString() : null);
+            data.setPrecipitation(weather.getPrecipitation() != null ? weather.getPrecipitation().toString() : null);
+            data.setWindMin(weather.getWindMin() != null ? weather.getWindMin().toString() : null);
+            data.setWindMax(weather.getWindMax() != null ? weather.getWindMax().toString() : null);
+            data.setPressure(weather.getPressure() != null ? weather.getPressure().toString() : null);
+            
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
         }
-        
-        WeatherData data = new WeatherData();
-        data.setDate(weather.getDate().toString());
-        data.setTemperatureMin(weather.getTemperatureMin() != null ? weather.getTemperatureMin().toString() : null);
-        data.setTemperatureMax(weather.getTemperatureMax() != null ? weather.getTemperatureMax().toString() : null);
-        data.setHumidityMin(weather.getHumidityMin() != null ? weather.getHumidityMin().toString() : null);
-        data.setHumidityMax(weather.getHumidityMax() != null ? weather.getHumidityMax().toString() : null);
-        data.setPrecipitation(weather.getPrecipitation() != null ? weather.getPrecipitation().toString() : null);
-        data.setWindMin(weather.getWindMin() != null ? weather.getWindMin().toString() : null);
-        data.setWindMax(weather.getWindMax() != null ? weather.getWindMax().toString() : null);
-        data.setPressure(weather.getPressure() != null ? weather.getPressure().toString() : null);
-        
-        return ResponseEntity.ok(data);
-    } catch (Exception e) {
-        return ResponseEntity.badRequest().build();
     }
-}
 }

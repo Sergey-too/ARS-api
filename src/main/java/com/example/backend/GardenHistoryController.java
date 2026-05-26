@@ -25,6 +25,7 @@ public class GardenHistoryController {
 
             Integer userId = uc.getUserId(); 
             String areaName = (uc.getArea() != null) ? uc.getArea().getName() : "Участок";
+            Integer regionId = (uc.getArea() != null && uc.getArea().getRegionId() != null) ? uc.getArea().getRegionId() : null;
             
             String name = (uc.getCrop() != null) ? uc.getCrop().getName() : 
                     (uc.getIndividualCrop() != null ? uc.getIndividualCrop().getName() : "Неизвестно");
@@ -43,19 +44,12 @@ public class GardenHistoryController {
             history.setDoneAt(LocalDateTime.now());
             history.setAreaName(areaName);
             history.setCropName(name);
+            history.setRegionId(regionId);
 
             if (uc.getCrop() != null) {
-                Crop c = uc.getCrop();
-                history.setVariety(c.getVariety());
-                history.setWateringInterval(c.getWateringInterval());
-                history.setFertilizingInterval(c.getFertilizingInterval());
-                history.setSoilCareInterval(c.getSoilCareInterval());
-                history.setProtectionInterval(c.getProtectionInterval());
-                history.setDaysToHarvest(c.getDaysToHarvest()); // ВОТ ЭТА СТРОКА
+                history.setVariety(uc.getCrop().getVariety());
             } else if (uc.getIndividualCrop() != null) {
                 history.setVariety(uc.getIndividualCrop().getVariety());
-                history.setWateringInterval(7); 
-                history.setDaysToHarvest(60); 
             }
 
             historyRepository.save(history);

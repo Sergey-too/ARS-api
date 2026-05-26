@@ -1,7 +1,7 @@
 package com.example.backend;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "user_crops")
@@ -24,7 +24,10 @@ public class UserCrop {
     private Integer areaId;
 
     @Column(name = "planted_at")
-    private LocalDateTime plantedAt;
+    private LocalDate plantedAt;  
+    
+    @Column(name = "harvested_at")
+    private LocalDate harvestedAt;  
 
     @ManyToOne
     @JoinColumn(name = "crop_id", insertable = false, updatable = false)
@@ -37,8 +40,7 @@ public class UserCrop {
     @ManyToOne
     @JoinColumn(name = "area_id", insertable = false, updatable = false)
     private Area area;
-    
-    // Геттеры и сеттеры (без дублирования!)
+
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
     
@@ -54,8 +56,11 @@ public class UserCrop {
     public Integer getAreaId() { return areaId; }
     public void setAreaId(Integer areaId) { this.areaId = areaId; }
     
-    public LocalDateTime getPlantedAt() { return plantedAt; }
-    public void setPlantedAt(LocalDateTime plantedAt) { this.plantedAt = plantedAt; }
+    public LocalDate getPlantedAt() { return plantedAt; }
+    public void setPlantedAt(LocalDate plantedAt) { this.plantedAt = plantedAt; }
+    
+    public LocalDate getHarvestedAt() { return harvestedAt; }
+    public void setHarvestedAt(LocalDate harvestedAt) { this.harvestedAt = harvestedAt; }
     
     public Crop getCrop() { return crop; }
     public void setCrop(Crop crop) { this.crop = crop; }
