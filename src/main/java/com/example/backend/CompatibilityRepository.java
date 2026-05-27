@@ -23,4 +23,9 @@ public interface CompatibilityRepository extends JpaRepository<Crop, Integer> {
     int updateCompatibilityStatus(@Param("crop1") String crop1, 
                                   @Param("crop2") String crop2, 
                                   @Param("status") Integer status);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Compatibility c WHERE c.crop1.id = :cropId OR c.crop2.id = :cropId")
+    void deleteByCropId(@Param("cropId") Integer cropId);
 }

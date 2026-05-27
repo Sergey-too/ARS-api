@@ -31,15 +31,13 @@ public class CropController {
         List<Crop> crops = cropRepository.findByCategoryName(categoryName);
         return ResponseEntity.ok(crops);
     }
-    
-    // 3. ДОБАВИТЬ новое растение (ИСПРАВЛЕНО: Добавлены новые поля)
+
     @PostMapping("/crops")
     public ResponseEntity<Crop> addCrop(@RequestBody CropRequest cropRequest) {
         try {
             Crop crop = new Crop();
-            fillCropData(crop, cropRequest); // Вынес в отдельный метод, чтобы не дублировать код
-            
-            // Работаем с категорией
+            fillCropData(crop, cropRequest);
+
             if (cropRequest.getCategory() != null && !cropRequest.getCategory().isEmpty()) {
                 Category category = categoryRepository.findByName(cropRequest.getCategory());
                 if (category != null) {
@@ -73,7 +71,6 @@ public class CropController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 5. Обновить растение (ИСПРАВЛЕНО: Добавлены новые поля)
     @PutMapping("/crops/{id}")
     public ResponseEntity<Crop> updateCrop(@PathVariable Integer id, @RequestBody CropRequest cropRequest) {
         try {
@@ -100,7 +97,6 @@ public class CropController {
         }
     }
 
-    // Вспомогательный метод для заполнения данных (чтобы не забыть поля)
     private void fillCropData(Crop crop, CropRequest req) {
         crop.setName(req.getName());
         crop.setDescription(req.getDescription());
@@ -116,8 +112,6 @@ public class CropController {
         crop.setCanSeedlings(req.getCanSeedlings());
         crop.setCanDirectSow(req.getCanDirectSow());
         crop.setPhotoPath(req.getPhotoPath());
-        
-        // НОВЫЕ ПОЛЯ
         crop.setVariety(req.getVariety());
         crop.setWateringInterval(req.getWateringInterval());
         crop.setFertilizingInterval(req.getFertilizingInterval());
@@ -133,19 +127,26 @@ public class CropController {
                 response.put("success", false);
                 return ResponseEntity.status(404).body(response);
             }
-            List<UserCrop> userCrops = userCropRepository.findByCropId(id);
-            if (!userCrops.isEmpty()) userCropRepository.deleteAll(userCrops);
             
+            compatibilityRepository.deleteByCropId(id);
+            
+            List<UserCrop> userCrops = userCropRepository.findByCropId(id);
+            if (userCrops != null && !userCrops.isEmpty()) {
+                userCropRepository.deleteAll(userCrops);
+            }
+
             cropRepository.deleteById(id);
+            
             response.put("success", true);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            e.printStackTrace();
             response.put("success", false);
+            response.put("error", e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
     }
 
-    // ОБНОВЛЕННЫЙ CropRequest со всеми полями
     public static class CropRequest {
         private String name;
         private String category;
@@ -163,14 +164,12 @@ public class CropController {
         private Boolean canDirectSow;
         private String photoPath;
         
-        // Поля, которые вы добавили в БД
         private String variety;
         private Integer wateringInterval;
         private Integer fertilizingInterval;
         private Integer soilCareInterval;
         private Integer protectionInterval;
 
-        // Геттеры и сеттеры для новых полей
         public String getVariety() { return variety; }
         public void setVariety(String variety) { this.variety = variety; }
 
@@ -186,7 +185,6 @@ public class CropController {
         public Integer getProtectionInterval() { return protectionInterval; }
         public void setProtectionInterval(Integer protectionInterval) { this.protectionInterval = protectionInterval; }
 
-        // Существующие геттеры и сеттеры (оставьте как были)
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
         public String getCategory() { return category; }
