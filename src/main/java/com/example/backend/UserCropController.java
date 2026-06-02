@@ -1,17 +1,25 @@
 package com.example.backend;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.io.File;
-import java.nio.file.Files;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.time.LocalDate;
-
-import java.util.stream.Collectors;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/crops")
@@ -30,6 +38,7 @@ public class UserCropController {
         try {
             Integer userId = (Integer) request.get("userId");
             Integer areaId = (Integer) request.get("areaId");
+            Integer gardenId = (Integer) request.get("gardenId");
             Integer cropId = (Integer) request.get("cropId");
             Integer individualId = (Integer) request.get("individualCropId");
             
@@ -39,6 +48,7 @@ public class UserCropController {
             UserCrop userCrop = new UserCrop();
             userCrop.setUserId(userId);
             userCrop.setAreaId(areaId);
+            userCrop.setGardenId(gardenId);
 
             if (plantedAtStr != null && !plantedAtStr.isEmpty()) {
                 userCrop.setPlantedAt(LocalDate.parse(plantedAtStr));

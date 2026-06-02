@@ -1,7 +1,15 @@
 package com.example.backend;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "user_crops")
@@ -22,6 +30,9 @@ public class UserCrop {
     
     @Column(name = "area_id") 
     private Integer areaId;
+    
+    @Column(name = "garden_id") 
+    private Integer gardenId;
 
     @Column(name = "planted_at")
     private LocalDate plantedAt;  
@@ -40,6 +51,10 @@ public class UserCrop {
     @ManyToOne
     @JoinColumn(name = "area_id", insertable = false, updatable = false)
     private Area area;
+    
+    @ManyToOne
+    @JoinColumn(name = "garden_id", insertable = false, updatable = false)
+    private Garden garden;
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -56,6 +71,9 @@ public class UserCrop {
     public Integer getAreaId() { return areaId; }
     public void setAreaId(Integer areaId) { this.areaId = areaId; }
     
+    public Integer getGardenId() { return gardenId; }
+    public void setGardenId(Integer gardenId) { this.gardenId = gardenId; }
+    
     public LocalDate getPlantedAt() { return plantedAt; }
     public void setPlantedAt(LocalDate plantedAt) { this.plantedAt = plantedAt; }
     
@@ -70,4 +88,7 @@ public class UserCrop {
     
     public Area getArea() { return area; }
     public void setArea(Area area) { this.area = area; }
+    
+    public Garden getGarden() { return garden; }
+    public void setGarden(Garden garden) { this.garden = garden; }
 }
