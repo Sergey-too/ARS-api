@@ -1,10 +1,13 @@
 package com.example.backend;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface IndividualUserCropRepository extends JpaRepository<IndividualUserCrop, Integer> {
@@ -15,4 +18,9 @@ public interface IndividualUserCropRepository extends JpaRepository<IndividualUs
 
     @Query(value = "SELECT * FROM individual_user_crops WHERE user_id = :userId", nativeQuery = true)
     List<IndividualUserCrop> findByUserId(@Param("userId") int userId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE IndividualUserCrop i SET i.userCategoryId = NULL WHERE i.userCategoryId = :categoryId")
+    void setUserCategoryIdToNull(@Param("categoryId") Integer categoryId);
 }
