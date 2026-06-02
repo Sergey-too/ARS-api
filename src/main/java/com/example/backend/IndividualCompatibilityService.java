@@ -2,8 +2,10 @@ package com.example.backend;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class IndividualCompatibilityService {
@@ -14,14 +16,31 @@ public class IndividualCompatibilityService {
     @Autowired
     private IndividualUserCropRepository individualUserCropRepository;
 
-    public boolean updateMatrixStatus(IndividualCompatibilityDTO dto) {
+    @Transactional
+    public void update(IndividualCompatibilityDTO dto) {
         int updatedRows = individualCompatibilityRepository.updateCompatibilityStatus(
-                dto.getCrop1Id(), 
-                dto.getCrop2Id(), 
-                dto.getStatus(),
-                dto.getUserId()
+            dto.getCrop1Id(), 
+            dto.getCrop2Id(), 
+            dto.getStatus(),
+            dto.getUserId()
         );
-        return updatedRows > 0;
+        
+        // Если ничего не обновилось - значит записи нет, нужно создать
+        if (updatedRows == 0) {
+            // Проверяем, существует ли растение
+            IndividualUserCrop crop1 = individualUserCropRepository.findById(dto.getCrop1Id()).orElse(null);
+            IndividualUserCrop crop2 = individualUserCropRepository.findById(dto.getCrop2Id()).orElse(null);
+            
+            if (crop1 != null && crop2 != null) {
+                IndividualCompatibility compatibility = new IndividualCompatibility();
+                compatibility.setCrop1(crop1);
+                compatibility.setCrop2(crop2);
+                compatibility.setCompatibility(dto.getStatus());
+                compatibility.setUserId(dto.getUserId());
+                
+                individualCompatibilityRepository.save(compatibility);
+            }
+        }
     }
     
     public List<IndividualCompatibilityDTO> getMatrixByUser(int userId) {
@@ -58,14 +77,5 @@ public class IndividualCompatibilityService {
         }
         
         return result;
-    }
-    
-    public void update(IndividualCompatibilityDTO dto) {
-        individualCompatibilityRepository.updateCompatibilityStatus(
-            dto.getCrop1Id(), 
-            dto.getCrop2Id(), 
-            dto.getStatus(),
-            dto.getUserId()
-        );
     }
 }
