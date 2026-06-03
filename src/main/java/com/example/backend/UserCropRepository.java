@@ -1,11 +1,12 @@
 package com.example.backend;
 
+import java.time.LocalDate;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.time.LocalDate;
 
 @Repository
 public interface UserCropRepository extends JpaRepository<UserCrop, Integer> {
@@ -24,4 +25,6 @@ public interface UserCropRepository extends JpaRepository<UserCrop, Integer> {
     void deleteByUserId(Integer userId);
 
     List<UserCrop> findByIndividualCropId(Integer individualCropId);
+
+    List<UserCrop> findByUserIdAndPlantedAtAfter(Integer userId, LocalDate date);
 }

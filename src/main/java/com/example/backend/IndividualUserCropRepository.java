@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
 
 @Repository
 public interface IndividualUserCropRepository extends JpaRepository<IndividualUserCrop, Integer> {
@@ -23,4 +24,9 @@ public interface IndividualUserCropRepository extends JpaRepository<IndividualUs
     @Transactional
     @Query("UPDATE IndividualUserCrop i SET i.userCategoryId = NULL WHERE i.userCategoryId = :categoryId")
     void setUserCategoryIdToNull(@Param("categoryId") Integer categoryId);
+
+    Optional<IndividualUserCrop> findByUserIdAndName(Integer userId, String name);
+    
+    @Query("SELECT i FROM IndividualUserCrop i WHERE i.userId = :userId")
+    List<IndividualUserCrop> findAllByUserId(@Param("userId") Integer userId);
 }

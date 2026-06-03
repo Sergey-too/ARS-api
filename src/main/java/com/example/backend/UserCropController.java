@@ -65,8 +65,10 @@ public class UserCropController {
                 throw new Exception("Не указано растение");
             }
 
-            userCropRepository.save(userCrop);
+            UserCrop saved = userCropRepository.save(userCrop);
+            
             response.put("success", true);
+            response.put("id", saved.getId());  // ВОЗВРАЩАЕМ ID
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

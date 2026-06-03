@@ -1,12 +1,18 @@
 package com.example.backend;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.List;
-import java.util.stream.Collectors;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/history")
@@ -25,13 +31,22 @@ public class GardenHistoryController {
 
             Integer userId = uc.getUserId(); 
             String areaName = (uc.getArea() != null) ? uc.getArea().getName() : "Участок";
-            Integer regionId = (uc.getArea() != null && uc.getArea().getRegionId() != null) ? uc.getArea().getRegionId() : null;
+            String gardenName = (uc.getGarden() != null) ? uc.getGarden().getName() : null;
+            Integer regionId = (uc.getArea() != null && uc.getArea().getRegionId() != null) 
+                    ? uc.getArea().getRegionId() : null;
             
             String name = (uc.getCrop() != null) ? uc.getCrop().getName() : 
                     (uc.getIndividualCrop() != null ? uc.getIndividualCrop().getName() : "Неизвестно");
 
-            boolean alreadyPlanted = historyRepository.existsByUserIdAndAreaNameAndCropNameAndActionTypeId(
-                    userId, areaName, name, 1
+            String variety = null;
+            if (uc.getCrop() != null) {
+                variety = uc.getCrop().getVariety();
+            } else if (uc.getIndividualCrop() != null) {
+                variety = uc.getIndividualCrop().getVariety();
+            }
+
+            boolean alreadyPlanted = historyRepository.existsByUserIdAndAreaNameAndCropNameAndVarietyAndActionTypeId(
+                    userId, areaName, name, variety, 1
             );
 
             if (alreadyPlanted) {
@@ -43,14 +58,10 @@ public class GardenHistoryController {
             history.setActionTypeId(1); 
             history.setDoneAt(LocalDateTime.now());
             history.setAreaName(areaName);
+            history.setGardenName(gardenName);
             history.setCropName(name);
+            history.setVariety(variety);
             history.setRegionId(regionId);
-
-            if (uc.getCrop() != null) {
-                history.setVariety(uc.getCrop().getVariety());
-            } else if (uc.getIndividualCrop() != null) {
-                history.setVariety(uc.getIndividualCrop().getVariety());
-            }
 
             historyRepository.save(history);
             return ResponseEntity.ok(Map.of("success", true));
@@ -75,4 +86,5 @@ public class GardenHistoryController {
         
         return ResponseEntity.ok(plantingHistory);
     }
+    
 }

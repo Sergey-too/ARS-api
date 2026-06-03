@@ -22,6 +22,10 @@ public interface WeatherRepository extends JpaRepository<Weather, Integer> {
     @Query("SELECT w FROM Weather w WHERE w.regionId = :regionId AND w.date = :date")
     Weather findByRegionIdAndDate(@Param("regionId") Integer regionId, 
                                   @Param("date") LocalDate date);
+    
+    @Query("SELECT w FROM Weather w WHERE w.regionId = :regionId AND w.date >= :startDate ORDER BY w.date ASC")
+    List<Weather> findByRegionIdAndDateGreaterThanEqual(@Param("regionId") Integer regionId, 
+                                                         @Param("startDate") LocalDate startDate);
 
     @Query(value = "EXEC GetWeatherComparison :regionId", nativeQuery = true)
     Map<String, Object> getWeatherComparison(@Param("regionId") Integer regionId);

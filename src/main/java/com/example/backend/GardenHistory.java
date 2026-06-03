@@ -1,7 +1,13 @@
 package com.example.backend;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "garden_history")
@@ -20,14 +26,17 @@ public class GardenHistory {
     @Column(name = "done_at", nullable = false)
     private LocalDateTime doneAt;
     
-    @Column(name = "crop_name", length = 100)
+    @Column(name = "crop_name")
     private String cropName;
     
-    @Column(name = "variety", length = 100)
+    @Column(name = "variety")
     private String variety;
     
-    @Column(name = "area_name", length = 100)
+    @Column(name = "area_name")
     private String areaName;
+
+    @Column(name = "garden_name")
+    private String gardenName;
 
     @Column(name = "region_id")
     private Integer regionId;
@@ -54,6 +63,9 @@ public class GardenHistory {
     
     public String getAreaName() { return areaName; }
     public void setAreaName(String areaName) { this.areaName = areaName; }
+    
+    public String getGardenName() { return gardenName; }  
+    public void setGardenName(String gardenName) { this.gardenName = gardenName; }  
     
     public Integer getRegionId() { return regionId; }
     public void setRegionId(Integer regionId) { this.regionId = regionId; }
