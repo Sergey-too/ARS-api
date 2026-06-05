@@ -68,7 +68,7 @@ public class UserCropController {
             UserCrop saved = userCropRepository.save(userCrop);
             
             response.put("success", true);
-            response.put("id", saved.getId());  // ВОЗВРАЩАЕМ ID
+            response.put("id", saved.getId());  
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {

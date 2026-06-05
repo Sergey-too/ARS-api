@@ -3,7 +3,6 @@ package com.example.backend;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -72,13 +71,79 @@ public class GardenTaskController {
         LocalDate today = LocalDate.now();
         LocalDate weekLater = today.plusDays(7);
         
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        Map<Integer, List<Weather>> weatherCache = loadWeatherCache(userId, today);
+        
+        List<GardenHistory> plantings = historyRepository.findAllPlantingsByUserId(userId);
+        
+        List<UserCrop> futurePlantings = userCropRepository.findByUserIdAndPlantedAtAfter(userId, LocalDate.now());
+        
+        for (GardenHistory plant : plantings) {
+            if (!shouldGenerateTasks(plant)) {
+                continue;
+            }
+            
+            generateTasksForPlant(allTasks, plant, 
+                                plant.getCropName(), 
+                                plant.getVariety() != null ? plant.getVariety() : "Обычный",
+                                plant.getAreaName(), 
+                                plant.getGardenName(), 
+                                plant.getRegionId(),
+                                plant.getUserId(), 
+                                plant.getDoneAt().toLocalDate(),
+                                today, weekLater, weatherCache);
+        }
+        
+        for (UserCrop futurePlant : futurePlantings) {
+            LocalDate plantingDate = futurePlant.getPlantedAt();
+            if (plantingDate != null && !plantingDate.isAfter(weekLater)) {
+                generateTasksForFuturePlant(allTasks, futurePlant, plantingDate, today, weekLater, weatherCache);
+            }
+        }
 
+        List<Map<String, Object>> uniqueTasks = removeDuplicateTasksPerDay(allTasks);
+        uniqueTasks.sort(Comparator.comparing(t -> (String) t.get("dueDate")));
+        
+        List<Map<String, Object>> incompleteTasks = filterIncompleteTasks(uniqueTasks, userId);
+        
+        return ResponseEntity.ok(incompleteTasks);
+    }
+
+    private List<Map<String, Object>> filterIncompleteTasks(List<Map<String, Object>> tasks, Integer userId) {
+        List<Map<String, Object>> incompleteTasks = new ArrayList<>();
+        
+        for (Map<String, Object> task : tasks) {
+            String cropName = (String) task.get("cropName");
+            String variety = (String) task.get("variety");
+            String areaName = (String) task.get("areaName");
+            Integer actionTypeId = (Integer) task.get("actionTypeId");
+            String dueDateStr = (String) task.get("dueDate");
+            
+            if (dueDateStr == null) continue;
+            
+            LocalDate dueDate = LocalDate.parse(dueDateStr);
+            
+            // Проверяем, выполнена ли уже эта задача
+            List<GardenHistory> existingTasks = historyRepository
+                .findByUserIdAndCropNameAndAreaNameAndActionTypeIdAndDoneAtBetween(
+                    userId, cropName, areaName, actionTypeId,
+                    dueDate.atStartOfDay(),
+                    dueDate.atTime(LocalTime.MAX)
+                );
+            
+            // Если задача не выполнена, добавляем её
+            if (existingTasks.isEmpty()) {
+                incompleteTasks.add(task);
+            }
+        }
+        
+        return incompleteTasks;
+    }
+    
+    private Map<Integer, List<Weather>> loadWeatherCache(Integer userId, LocalDate today) {
         Map<Integer, List<Weather>> weatherCache = new HashMap<>();
         Set<Integer> regionIds = new HashSet<>();
         
         List<GardenHistory> plantings = historyRepository.findAllPlantingsByUserId(userId);
-        
         for (GardenHistory plant : plantings) {
             if (plant.getRegionId() != null) {
                 regionIds.add(plant.getRegionId());
@@ -86,7 +151,6 @@ public class GardenTaskController {
         }
         
         List<UserCrop> futurePlantings = userCropRepository.findByUserIdAndPlantedAtAfter(userId, LocalDate.now());
-        
         for (UserCrop futurePlant : futurePlantings) {
             if (futurePlant.getArea() != null && futurePlant.getArea().getRegionId() != null) {
                 regionIds.add(futurePlant.getArea().getRegionId());
@@ -100,28 +164,150 @@ public class GardenTaskController {
             }
         }
         
-        for (GardenHistory plant : plantings) {
-            if (!shouldGenerateTasks(plant)) {
-                continue;
-            }
+        return weatherCache;
+    }
+    
+    private void generateTasksForPlant(List<Map<String, Object>> tasks, 
+                                       GardenHistory plant,
+                                       String cropName, 
+                                       String variety,
+                                       String areaName, 
+                                       String gardenName,
+                                       Integer regionId, 
+                                       Integer userId, 
+                                       LocalDate plantingDate,
+                                       LocalDate today, 
+                                       LocalDate weekLater,
+                                       Map<Integer, List<Weather>> weatherCache) {
+        
+        Optional<Crop> cropOpt = cropRepository.findByName(cropName);
+        
+        Integer wateringInterval = null;
+        Integer fertilizingInterval = null;
+        Integer soilCareInterval = null;
+        Integer protectionInterval = null;
+        Integer daysToHarvest = null;
+        Integer daysToGermination = null;
+        
+        if (cropOpt.isPresent()) {
+            Crop crop = cropOpt.get();
+            wateringInterval = crop.getWateringInterval();
+            fertilizingInterval = crop.getFertilizingInterval();
+            soilCareInterval = crop.getSoilCareInterval();
+            protectionInterval = crop.getProtectionInterval();
+            daysToHarvest = crop.getDaysToHarvest();
+            daysToGermination = crop.getDaysToGermination();
+        } else {
+            Optional<IndividualUserCrop> individualOpt = individualCropRepository
+                .findByUserIdAndName(userId, cropName);
             
-            generateTasksForPlant(allTasks, plant, plant.getCropName(), plant.getVariety(), 
-                                  plant.getAreaName(), plant.getGardenName(), plant.getRegionId(),
-                                  plant.getUserId(), plant.getDoneAt().toLocalDate(),
-                                  today, weekLater, weatherCache);
+            if (individualOpt.isPresent()) {
+                IndividualUserCrop individual = individualOpt.get();
+                wateringInterval = individual.getWateringInterval();
+                fertilizingInterval = individual.getFertilizingInterval();
+                soilCareInterval = individual.getSoilCareInterval();
+                protectionInterval = individual.getProtectionInterval();
+                daysToHarvest = individual.getDaysToHarvest();
+                daysToGermination = individual.getDaysToGermination();
+                variety = individual.getVariety() != null ? individual.getVariety() : "Обычный";
+            }
         }
         
-        for (UserCrop futurePlant : futurePlantings) {
-            LocalDate plantingDate = futurePlant.getPlantedAt();
-            
-            if (plantingDate != null && !plantingDate.isAfter(weekLater)) {
-                generateTasksForFuturePlant(allTasks, futurePlant, plantingDate, today, weekLater, weatherCache);
-            }
+        // Генерируем задачи на полив с учетом daysToGermination
+        if (wateringInterval != null && wateringInterval > 0) {
+            generateWateringTasksForPlant(tasks, plant, wateringInterval, daysToGermination,
+                                          plantingDate, today, weekLater, weatherCache);
         }
-
-        List<Map<String, Object>> uniqueTasks = removeDuplicateTasksPerDay(allTasks);
-        uniqueTasks.sort(Comparator.comparing(t -> (String) t.get("dueDate")));
-        return ResponseEntity.ok(uniqueTasks);
+        
+        // Остальные задачи
+        if (fertilizingInterval != null && fertilizingInterval > 0) {
+            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.FERTILIZING, fertilizingInterval, variety, today, weekLater, weatherCache);
+        }
+        if (soilCareInterval != null && soilCareInterval > 0) {
+            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.SOIL_CARE, soilCareInterval, variety, today, weekLater, weatherCache);
+        }
+        if (protectionInterval != null && protectionInterval > 0) {
+            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.PROTECTION, protectionInterval, variety, today, weekLater, weatherCache);
+        }
+        if (daysToHarvest != null && daysToHarvest > 0) {
+            addHarvestTaskIfNotCompleted(tasks, plant, daysToHarvest, variety, today, weekLater, weatherCache);
+        }
+    }
+    
+    private void generateWateringTasksForPlant(List<Map<String, Object>> tasks,
+                                               GardenHistory plant,
+                                               Integer wateringInterval,
+                                               Integer daysToGermination,
+                                               LocalDate plantingDate,
+                                               LocalDate today,
+                                               LocalDate weekLater,
+                                               Map<Integer, List<Weather>> weatherCache) {
+        
+        if (wateringInterval == null || wateringInterval <= 0) return;
+        
+        // До всходов поливаем реже (интервал увеличивается в 2 раза)
+        int beforeGerminationInterval = wateringInterval * 2;
+        
+        // Получаем последний полив
+        List<GardenHistory> lastWaterings = historyRepository
+            .findLastActionsByCropVarietyAreaAndType(
+                plant.getCropName(),
+                plant.getVariety() != null ? plant.getVariety() : "Обычный",
+                plant.getAreaName(),
+                ActionTypeEnum.WATERING.getId()
+            );
+        
+        LocalDate lastWateringDate = plantingDate;
+        if (lastWaterings != null && !lastWaterings.isEmpty()) {
+            lastWateringDate = lastWaterings.get(0).getDoneAt().toLocalDate();
+        }
+        
+        // Дата окончания периода до всходов
+        LocalDate germinationEndDate = null;
+        if (daysToGermination != null && daysToGermination > 0) {
+            germinationEndDate = plantingDate.plusDays(daysToGermination);
+        }
+        
+        LocalDate currentDate = lastWateringDate.plusDays(1);
+        
+        while (!currentDate.isAfter(weekLater)) {
+            // Определяем интервал для текущего периода
+            int currentInterval;
+            
+            if (germinationEndDate != null && currentDate.isBefore(germinationEndDate)) {
+                currentInterval = beforeGerminationInterval;
+            } else {
+                currentInterval = wateringInterval;
+            }
+            
+            long daysSinceLastWatering = java.time.temporal.ChronoUnit.DAYS.between(lastWateringDate, currentDate);
+            if (daysSinceLastWatering >= currentInterval) {
+                
+                boolean shouldWater = checkWeatherForWatering(plant.getRegionId(), currentDate, weatherCache);
+                
+                if (shouldWater) {
+                    List<GardenHistory> existingOnDate = historyRepository
+                        .findByUserIdAndCropNameAndAreaNameAndActionTypeIdAndDoneAtBetween(
+                            plant.getUserId(),
+                            plant.getCropName(),
+                            plant.getAreaName(),
+                            ActionTypeEnum.WATERING.getId(),
+                            currentDate.atStartOfDay(),
+                            currentDate.atTime(LocalTime.MAX)
+                        );
+                    
+                    if (existingOnDate.isEmpty() && (currentDate.isEqual(today) || currentDate.isAfter(today))) {
+                        Map<String, Object> task = buildTaskMap(plant, ActionTypeEnum.WATERING, currentDate, 
+                                                                plant.getVariety() != null ? plant.getVariety() : "Обычный", today);
+                        tasks.add(task);
+                    }
+                }
+                
+                lastWateringDate = currentDate;
+            }
+            
+            currentDate = currentDate.plusDays(1);
+        }
     }
     
     private void generateTasksForFuturePlant(List<Map<String, Object>> tasks, 
@@ -138,6 +324,7 @@ public class GardenTaskController {
         Integer soilCareInterval = null;
         Integer protectionInterval = null;
         Integer daysToHarvest = null;
+        Integer daysToGermination = null;
         Integer regionId = null;
         
         if (futurePlant.getCrop() != null) {
@@ -148,6 +335,7 @@ public class GardenTaskController {
             soilCareInterval = futurePlant.getCrop().getSoilCareInterval();
             protectionInterval = futurePlant.getCrop().getProtectionInterval();
             daysToHarvest = futurePlant.getCrop().getDaysToHarvest();
+            daysToGermination = futurePlant.getCrop().getDaysToGermination();
         } else if (futurePlant.getIndividualCrop() != null) {
             cropName = futurePlant.getIndividualCrop().getName();
             variety = futurePlant.getIndividualCrop().getVariety();
@@ -156,6 +344,7 @@ public class GardenTaskController {
             soilCareInterval = futurePlant.getIndividualCrop().getSoilCareInterval();
             protectionInterval = futurePlant.getIndividualCrop().getProtectionInterval();
             daysToHarvest = futurePlant.getIndividualCrop().getDaysToHarvest();
+            daysToGermination = futurePlant.getIndividualCrop().getDaysToGermination();
         } else {
             return;
         }
@@ -168,10 +357,14 @@ public class GardenTaskController {
         String gardenName = futurePlant.getGarden() != null ? futurePlant.getGarden().getName() : null;
         Integer userId = futurePlant.getUserId();
         
+        // Генерируем задачи на полив с учетом daysToGermination
         if (wateringInterval != null && wateringInterval > 0) {
-            generateFutureTasks(tasks, cropName, variety, areaName, gardenName, regionId, userId,
-                                ActionTypeEnum.WATERING, wateringInterval, plantingDate, today, weekLater, weatherCache);
+            generateWateringTasksForFuturePlant(tasks, cropName, variety, areaName, gardenName, 
+                                                regionId, userId, wateringInterval, daysToGermination,
+                                                plantingDate, today, weekLater, weatherCache);
         }
+        
+        // Остальные задачи
         if (fertilizingInterval != null && fertilizingInterval > 0) {
             generateFutureTasks(tasks, cropName, variety, areaName, gardenName, regionId, userId,
                                 ActionTypeEnum.FERTILIZING, fertilizingInterval, plantingDate, today, weekLater, weatherCache);
@@ -187,6 +380,60 @@ public class GardenTaskController {
         if (daysToHarvest != null && daysToHarvest > 0) {
             generateFutureHarvestTasks(tasks, cropName, variety, areaName, gardenName, regionId, userId,
                                        daysToHarvest, plantingDate, today, weekLater, weatherCache);
+        }
+    }
+    
+    private void generateWateringTasksForFuturePlant(List<Map<String, Object>> tasks,
+                                                     String cropName, String variety, String areaName, String gardenName,
+                                                     Integer regionId, Integer userId,
+                                                     Integer wateringInterval,
+                                                     Integer daysToGermination,
+                                                     LocalDate plantingDate,
+                                                     LocalDate today, 
+                                                     LocalDate weekLater,
+                                                     Map<Integer, List<Weather>> weatherCache) {
+        
+        if (wateringInterval == null || wateringInterval <= 0) return;
+        
+        // До всходов поливаем реже (интервал увеличивается в 2 раза)
+        int beforeGerminationInterval = wateringInterval * 2;
+        
+        LocalDate currentDate = plantingDate.plusDays(1);
+        LocalDate germinationEndDate = daysToGermination != null && daysToGermination > 0 
+                                       ? plantingDate.plusDays(daysToGermination) 
+                                       : null;
+        
+        while (!currentDate.isAfter(weekLater)) {
+            int currentInterval;
+            
+            if (germinationEndDate != null && currentDate.isBefore(germinationEndDate)) {
+                currentInterval = beforeGerminationInterval;
+            } else {
+                currentInterval = wateringInterval;
+            }
+            
+            long daysSincePlanting = java.time.temporal.ChronoUnit.DAYS.between(plantingDate, currentDate);
+            if (daysSincePlanting % currentInterval == 0) {
+                
+                boolean shouldWater = checkWeatherForWatering(regionId, currentDate, weatherCache);
+                
+                if (shouldWater) {
+                    List<GardenHistory> existingOnDate = historyRepository
+                        .findByUserIdAndCropNameAndAreaNameAndActionTypeIdAndDoneAtBetween(
+                            userId, cropName, areaName, ActionTypeEnum.WATERING.getId(),
+                            currentDate.atStartOfDay(),
+                            currentDate.atTime(LocalTime.MAX)
+                        );
+                    
+                    if (existingOnDate.isEmpty() && (currentDate.isEqual(today) || currentDate.isAfter(today))) {
+                        Map<String, Object> task = buildTaskMapSimple(cropName, variety, areaName, gardenName,
+                                                                      ActionTypeEnum.WATERING, currentDate, today);
+                        tasks.add(task);
+                    }
+                }
+            }
+            
+            currentDate = currentDate.plusDays(1);
         }
     }
     
@@ -256,60 +503,6 @@ public class GardenTaskController {
                 }
             }
             currentDate = currentDate.plusDays(1);
-        }
-    }
-    
-    private void generateTasksForPlant(List<Map<String, Object>> tasks, 
-                                   GardenHistory plant,
-                                   String cropName, String variety, String areaName, String gardenName,
-                                   Integer regionId, Integer userId, LocalDate plantingDate,
-                                   LocalDate today, LocalDate weekLater,
-                                   Map<Integer, List<Weather>> weatherCache) {
-        
-        Optional<Crop> cropOpt = cropRepository.findByName(cropName);
-        
-        Integer wateringInterval = null;
-        Integer fertilizingInterval = null;
-        Integer soilCareInterval = null;
-        Integer protectionInterval = null;
-        Integer daysToHarvest = null;
-        
-        if (cropOpt.isPresent()) {
-            Crop crop = cropOpt.get();
-            wateringInterval = crop.getWateringInterval();
-            fertilizingInterval = crop.getFertilizingInterval();
-            soilCareInterval = crop.getSoilCareInterval();
-            protectionInterval = crop.getProtectionInterval();
-            daysToHarvest = crop.getDaysToHarvest();
-        } else {
-            Optional<IndividualUserCrop> individualOpt = individualCropRepository
-                .findByUserIdAndName(userId, cropName);
-            
-            if (individualOpt.isPresent()) {
-                IndividualUserCrop individual = individualOpt.get();
-                wateringInterval = individual.getWateringInterval();
-                fertilizingInterval = individual.getFertilizingInterval();
-                soilCareInterval = individual.getSoilCareInterval();
-                protectionInterval = individual.getProtectionInterval();
-                daysToHarvest = individual.getDaysToHarvest();
-                variety = individual.getVariety() != null ? individual.getVariety() : "Обычный";
-            }
-        }
-        
-        if (wateringInterval != null && wateringInterval > 0) {
-            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.WATERING, wateringInterval, variety, today, weekLater, weatherCache);
-        }
-        if (fertilizingInterval != null && fertilizingInterval > 0) {
-            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.FERTILIZING, fertilizingInterval, variety, today, weekLater, weatherCache);
-        }
-        if (soilCareInterval != null && soilCareInterval > 0) {
-            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.SOIL_CARE, soilCareInterval, variety, today, weekLater, weatherCache);
-        }
-        if (protectionInterval != null && protectionInterval > 0) {
-            addTaskIfNotCompleted(tasks, plant, ActionTypeEnum.PROTECTION, protectionInterval, variety, today, weekLater, weatherCache);
-        }
-        if (daysToHarvest != null && daysToHarvest > 0) {
-            addHarvestTaskIfNotCompleted(tasks, plant, daysToHarvest, variety, today, weekLater, weatherCache);
         }
     }
 
@@ -464,10 +657,32 @@ public class GardenTaskController {
         
         for (Weather w : weatherList) {
             if (w.getDate() != null && w.getDate().equals(date)) {
+                Float precipitation = w.getPrecipitation();
+                if (precipitation != null && precipitation >= 5.0) {
+                    return false;
+                }
                 return true;
             }
         }
         return false;
+    }
+    
+    private boolean checkWeatherForWatering(Integer regionId, LocalDate date, Map<Integer, List<Weather>> weatherCache) {
+        if (regionId == null) return true;
+        
+        List<Weather> weatherList = weatherCache.get(regionId);
+        if (weatherList == null || weatherList.isEmpty()) return true;
+        
+        for (Weather w : weatherList) {
+            if (w.getDate() != null && w.getDate().equals(date)) {
+                Float precipitation = w.getPrecipitation();
+                if (precipitation != null && precipitation >= 5.0) {
+                    return false;
+                }
+                return true;
+            }
+        }
+        return true;
     }
 
     private List<Map<String, Object>> removeDuplicateTasksPerDay(List<Map<String, Object>> tasks) {

@@ -1,13 +1,21 @@
 package com.example.backend;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
@@ -220,14 +228,24 @@ public class CropController {
     @GetMapping("/crops/compatibility")
     public ResponseEntity<List<CompatibilityDTO>> getCompatibilityMatrix() {
         List<Object[]> rawData = compatibilityRepository.getRawMatrix();
-        List<CompatibilityDTO> result = rawData.stream()
-            .map(row -> {
-                String crop1 = String.valueOf(row[1]); 
-                String crop2 = String.valueOf(row[3]);
-                Integer status = (row[4] != null) ? ((Number) row[4]).intValue() : 1;
-                return new CompatibilityDTO(crop1, crop2, status);
-            })
-            .collect(Collectors.toList());
+        List<CompatibilityDTO> result = new ArrayList<>();
+        
+        for (Object[] row : rawData) {
+            Integer cropId1 = row[0] != null ? ((Number) row[0]).intValue() : null;
+            String crop1Name = row[1] != null ? String.valueOf(row[1]) : "";
+            Integer cropId2 = row[2] != null ? ((Number) row[2]).intValue() : null;
+            String crop2Name = row[3] != null ? String.valueOf(row[3]) : "";
+            Integer status = row[4] != null ? ((Number) row[4]).intValue() : 1;
+            
+            CompatibilityDTO dto = new CompatibilityDTO();
+            dto.setCrop1(crop1Name);
+            dto.setCrop2(crop2Name);
+            dto.setStatus(status);
+            dto.setCropId1(cropId1);
+            dto.setCropId2(cropId2);
+            result.add(dto);
+        }
+        
         return ResponseEntity.ok(result);
     }
 }

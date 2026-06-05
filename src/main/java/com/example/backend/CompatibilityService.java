@@ -14,7 +14,7 @@ public class CompatibilityService {
                 dto.getCrop1(), 
                 dto.getCrop2(), 
                 dto.getStatus()
-        );
+        );  
         return updatedRows > 0;
     }
 }
