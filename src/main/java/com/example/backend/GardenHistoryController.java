@@ -1,6 +1,7 @@
 package com.example.backend;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -85,6 +86,49 @@ public class GardenHistoryController {
                 .collect(Collectors.toList());
         
         return ResponseEntity.ok(plantingHistory);
+    }
+
+    @PostMapping("/add")
+    public ResponseEntity<Map<String, Object>> addHistory(@RequestBody Map<String, Object> request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Integer userId = (Integer) request.get("userId");
+            Integer actionTypeId = (Integer) request.get("actionTypeId");
+            String doneAtStr = (String) request.get("doneAt");
+            String cropName = (String) request.get("cropName");
+            String variety = (String) request.get("variety");
+            String areaName = (String) request.get("areaName");
+            String gardenName = (String) request.get("gardenName");
+            Integer regionId = (Integer) request.get("regionId");
+            
+            if (userId == null || actionTypeId == null || doneAtStr == null) {
+                response.put("success", false);
+                response.put("error", "Не все обязательные поля заполнены");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            LocalDateTime doneAt = LocalDateTime.parse(doneAtStr + "T00:00:00");
+            
+            GardenHistory history = new GardenHistory();
+            history.setUserId(userId);
+            history.setActionTypeId(actionTypeId);
+            history.setDoneAt(doneAt);
+            history.setCropName(cropName);
+            history.setVariety(variety);
+            history.setAreaName(areaName);
+            history.setGardenName(gardenName);
+            history.setRegionId(regionId);
+            
+            historyRepository.save(history);
+            
+            response.put("success", true);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
     }
     
 }

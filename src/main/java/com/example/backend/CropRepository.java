@@ -17,5 +17,6 @@ public interface CropRepository extends JpaRepository<Crop, Integer> {
     List<Crop> findByCategoryId(Integer categoryId);
 
     Optional<Crop> findByName(String name);
-    
+
+    Optional<Crop> findByNameAndVariety(String name, String variety);
 }   
