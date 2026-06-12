@@ -1,6 +1,7 @@
 package com.example.backend;
 
 import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -30,4 +31,9 @@ public interface IndividualCompatibilityRepository extends JpaRepository<Individ
     @Transactional
     @Query("DELETE FROM IndividualCompatibility c WHERE c.crop1.id = :cropId OR c.crop2.id = :cropId")
     void deleteByCropId(@Param("cropId") Integer cropId);
+
+    @Query(value = "SELECT compatibility FROM individual_compatibility_crops WHERE " +
+       "((crop1_id = :id1 AND crop2_id = :id2) OR " +
+       "(crop1_id = :id2 AND crop2_id = :id1))", nativeQuery = true)
+    Integer getCompatibilityStatus(@Param("id1") Integer id1, @Param("id2") Integer id2);
 }

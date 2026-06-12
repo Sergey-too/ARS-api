@@ -27,4 +27,11 @@ public interface UserCropRepository extends JpaRepository<UserCrop, Integer> {
     List<UserCrop> findByIndividualCropId(Integer individualCropId);
 
     List<UserCrop> findByUserIdAndPlantedAtAfter(Integer userId, LocalDate date);
+
+    
+    List<UserCrop> findByUserIdAndPlantedAtGreaterThanEqual(Integer userId, LocalDate date);
+
+    List<UserCrop> findByUserIdAndPlantedAtLessThan(Integer userId, LocalDate date);
+
+    List<UserCrop> findByAreaId(Integer areaId);
 }

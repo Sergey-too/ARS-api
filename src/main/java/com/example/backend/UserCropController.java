@@ -31,6 +31,7 @@ public class UserCropController {
     @Autowired private CropRepository cropRepository;
     @Autowired private IndividualUserCropRepository individualRepo;
     @Autowired private GardenHistoryRepository historyRepository;
+    @Autowired private WeatherRepository weatherRepository;
 
     @PostMapping("/user/add")
     public ResponseEntity<Map<String, Object>> addUserCrop(@RequestBody Map<String, Object> request) {
@@ -45,6 +46,121 @@ public class UserCropController {
             String plantedAtStr = (String) request.get("plantedAt");
             String harvestedAtStr = (String) request.get("harvestedAt");
 
+            // ========== 1. ПОЛУЧАЕМ ДАННЫЕ О РАСТЕНИИ ==========
+            Integer daysToHarvest = null;
+            String cropName = null;
+            Integer minTemp = null;
+            Integer maxTemp = null;
+            Integer maxWind = null;
+            
+            if (cropId != null) {
+                Optional<Crop> cropOpt = cropRepository.findById(cropId);
+                if (cropOpt.isPresent()) {
+                    Crop crop = cropOpt.get();
+                    daysToHarvest = crop.getDaysToHarvest();
+                    cropName = crop.getName();
+                    if (crop.getMinTemp() != null) minTemp = crop.getMinTemp().intValue();
+                    if (crop.getMaxTemp() != null) maxTemp = crop.getMaxTemp().intValue();
+                    if (crop.getMaxWind() != null) maxWind = crop.getMaxWind().intValue();
+                }
+            } else if (individualId != null) {
+                Optional<IndividualUserCrop> individualOpt = individualRepo.findById(individualId);
+                if (individualOpt.isPresent()) {
+                    IndividualUserCrop ind = individualOpt.get();
+                    daysToHarvest = ind.getDaysToHarvest();
+                    cropName = ind.getName();
+                    if (ind.getMinTemp() != null) minTemp = ind.getMinTemp().intValue();
+                    if (ind.getMaxTemp() != null) maxTemp = ind.getMaxTemp().intValue();
+                    if (ind.getMaxWind() != null) maxWind = ind.getMaxWind().intValue();
+                }
+            } else {
+                response.put("success", false);
+                response.put("error", "Не указано растение");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            if (cropName == null) {
+                response.put("success", false);
+                response.put("error", "Растение не найдено");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // ========== 2. ПРОВЕРКА ПОГОДЫ НА ДАТУ ПОСАДКИ ==========
+            if (plantedAtStr != null && !plantedAtStr.isEmpty()) {
+                LocalDate plantedAt = LocalDate.parse(plantedAtStr);
+                
+                Optional<Area> areaOpt = areaRepository.findById(areaId);
+                if (areaOpt.isPresent() && areaOpt.get().getRegionId() != null) {
+                    Integer regionId = areaOpt.get().getRegionId();
+                    Weather weather = weatherRepository.findByRegionIdAndDate(regionId, plantedAt);
+                    
+                    if (weather != null) {
+                        Short tempMinW = weather.getTemperatureMin();
+                        Short tempMaxW = weather.getTemperatureMax();
+                        Float precipitation = weather.getPrecipitation();
+                        Short windMaxW = weather.getWindMax();
+                        
+                        if (minTemp != null && tempMinW != null && tempMinW < minTemp) {
+                            response.put("success", false);
+                            response.put("error", "Слишком холодно для посадки. Минимальная температура: " + minTemp + "°C");
+                            return ResponseEntity.badRequest().body(response);
+                        }
+                        
+                        if (maxTemp != null && tempMaxW != null && tempMaxW > maxTemp) {
+                            response.put("success", false);
+                            response.put("error", "Слишком жарко для посадки. Максимальная температура: " + maxTemp + "°C");
+                            return ResponseEntity.badRequest().body(response);
+                        }
+                        
+                        if (maxWind != null && windMaxW != null && windMaxW > maxWind) {
+                            response.put("success", false);
+                            response.put("error", "Слишком сильный ветер для посадки. Максимальная скорость: " + maxWind + " м/с");
+                            return ResponseEntity.badRequest().body(response);
+                        }
+                        
+                        if (precipitation != null && precipitation > 5.0) {
+                            response.put("success", false);
+                            response.put("error", "Из-за сильных осадков посадка не рекомендуется");
+                            return ResponseEntity.badRequest().body(response);
+                        }
+                    }
+                }
+            }
+
+            // ========== 3. ПРОВЕРКА ДАТЫ СБОРА ==========
+            if (plantedAtStr != null && !plantedAtStr.isEmpty() && 
+                harvestedAtStr != null && !harvestedAtStr.isEmpty()) {
+                
+                LocalDate plantedAt = LocalDate.parse(plantedAtStr);
+                LocalDate harvestedAt = LocalDate.parse(harvestedAtStr);
+                
+                if (harvestedAt.isBefore(plantedAt)) {
+                    response.put("success", false);
+                    response.put("error", "Дата сбора не может быть раньше даты посадки");
+                    return ResponseEntity.badRequest().body(response);
+                }
+                
+                if (daysToHarvest != null && daysToHarvest > 0) {
+                    LocalDate earliestHarvestDate = plantedAt.plusDays(daysToHarvest);
+                    LocalDate latestHarvestDate = plantedAt.plusDays(daysToHarvest + 15);
+                    
+                    if (harvestedAt.isBefore(earliestHarvestDate)) {
+                        response.put("success", false);
+                        response.put("error", "Сбор урожая возможен не ранее " + earliestHarvestDate + 
+                                " (через " + daysToHarvest + " дней после посадки)");
+                        return ResponseEntity.badRequest().body(response);
+                    }
+                    
+                    if (harvestedAt.isAfter(latestHarvestDate)) {
+                        response.put("success", false);
+                        response.put("error", "Сбор урожая должен быть не позднее " + latestHarvestDate + 
+                                " (максимум " + (daysToHarvest + 15) + " дней после посадки)");
+                        return ResponseEntity.badRequest().body(response);
+                    }
+                }
+            }
+
+            // ========== 4. СОХРАНЕНИЕ ==========
             UserCrop userCrop = new UserCrop();
             userCrop.setUserId(userId);
             userCrop.setAreaId(areaId);
@@ -61,8 +177,6 @@ public class UserCropController {
                 userCrop.setCropId(cropId);
             } else if (individualId != null) {
                 userCrop.setIndividualCropId(individualId);
-            } else {
-                throw new Exception("Не указано растение");
             }
 
             UserCrop saved = userCropRepository.save(userCrop);
@@ -72,6 +186,7 @@ public class UserCropController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
+            e.printStackTrace();
             response.put("success", false);
             response.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(response);
