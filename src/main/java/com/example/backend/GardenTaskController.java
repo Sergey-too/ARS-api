@@ -69,7 +69,6 @@ public class GardenTaskController {
 
     private static final int HARVEST_PERIOD_DAYS = 15;
 
-    
     @GetMapping("/user/{userId}/weekly")
     public ResponseEntity<List<Map<String, Object>>> getWeeklyTasks(@PathVariable Integer userId) {
         log.info("========== getWeeklyTasks НАЧАЛО ==========");
@@ -84,22 +83,52 @@ public class GardenTaskController {
         Map<Integer, List<Weather>> weatherCache = loadWeatherCache(userId, today);
         log.info("weatherCache загружен, регионов: {}", weatherCache.size());
         
-        List<GardenHistory> plantings = historyRepository.findAllPlantingsByUserId(userId);
-        log.info("Найдено ЗАПИСЕЙ в garden_history (посадки): {}", plantings.size());
+        List<UserCrop> activeUserCrops = userCropRepository.findByUserId(userId);
+        Set<String> activeCropKeys = new HashSet<>();
         
-        for (GardenHistory plant : plantings) {
-            log.info("  - cropName = '{}', areaName = '{}', variety = '{}', regionId = {}, userId = {}, doneAt = {}", 
-                     plant.getCropName(), plant.getAreaName(), plant.getVariety(), 
-                     plant.getRegionId(), plant.getUserId(), plant.getDoneAt());
+        for (UserCrop uc : activeUserCrops) {
+            String name = null;
+            String variety = null;
+            
+            if (uc.getCrop() != null) {
+                name = uc.getCrop().getName();
+                variety = uc.getCrop().getVariety();
+            } else if (uc.getIndividualCrop() != null) {
+                name = uc.getIndividualCrop().getName();
+                variety = uc.getIndividualCrop().getVariety();
+            }
+            
+            if (name != null) {
+                String key = name.toLowerCase().trim() + "|" + 
+                            (variety != null ? variety.toLowerCase().trim() : "обычный");
+                activeCropKeys.add(key);
+                log.info("Активное растение: {} (ключ: {})", name, key);
+            }
         }
+        log.info("Активных растений: {}", activeCropKeys.size());
+        
+        List<GardenHistory> allPlantings = historyRepository.findAllPlantingsByUserId(userId);
+        List<GardenHistory> activePlantings = new ArrayList<>();
+        
+        for (GardenHistory plant : allPlantings) {
+            String cropName = plant.getCropName();
+            String variety = plant.getVariety() != null ? plant.getVariety() : "Обычный";
+            
+            if (cropName != null) {
+                String key = cropName.toLowerCase().trim() + "|" + variety.toLowerCase().trim();
+                if (activeCropKeys.contains(key)) {
+                    activePlantings.add(plant);
+                    log.info("Активная посадка: cropName={}, variety={}", cropName, variety);
+                } else {
+                    log.info("НЕАКТИВНАЯ посадка (пропускаем): cropName={}, variety={}", cropName, variety);
+                }
+            }
+        }
+        
+        log.info("Активных посадок в истории: {}", activePlantings.size());
         
         List<UserCrop> futurePlantings = userCropRepository.findByUserIdAndPlantedAtAfter(userId, LocalDate.now());
         log.info("Найдено БУДУЩИХ посадок: {}", futurePlantings.size());
-        
-        for (UserCrop fp : futurePlantings) {
-            log.info("  - futurePlant: cropId={}, individualCropId={}, plantedAt={}", 
-                     fp.getCropId(), fp.getIndividualCropId(), fp.getPlantedAt());
-        }
         
         List<Map<String, Object>> plannedTasks = getPlannedPlantingsInternal(userId, today);
         if (plannedTasks != null && !plannedTasks.isEmpty()) {
@@ -107,7 +136,7 @@ public class GardenTaskController {
             log.info("Добавлено ЗАПЛАНИРОВАННЫХ посадок: {}", plannedTasks.size());
         }
 
-        for (GardenHistory plant : plantings) {
+        for (GardenHistory plant : activePlantings) {
             log.info("Обработка растения: {}", plant.getCropName());
             
             if (!shouldGenerateTasks(plant)) {
@@ -148,7 +177,7 @@ public class GardenTaskController {
         
         for (Map<String, Object> task : incompleteTasks) {
             log.info("  - ИТОГОВАЯ ЗАДАЧА: cropName={}, actionName={}, dueDate={}", 
-                     task.get("cropName"), task.get("actionName"), task.get("dueDate"));
+                    task.get("cropName"), task.get("actionName"), task.get("dueDate"));
         }
         
         log.info("========== getWeeklyTasks КОНЕЦ ==========");
@@ -855,20 +884,36 @@ public class GardenTaskController {
     }
 
     private void addHarvestTaskIfNotCompleted(List<Map<String, Object>> tasks, 
-                                              GardenHistory plant,
-                                              Integer daysToHarvest,
-                                              String variety,
-                                              LocalDate today, 
-                                              LocalDate weekLater,
-                                              Map<Integer, List<Weather>> weatherCache) {
+                                            GardenHistory plant,
+                                            Integer daysToHarvest,
+                                            String variety,
+                                            LocalDate today, 
+                                            LocalDate weekLater,
+                                            Map<Integer, List<Weather>> weatherCache) {
         
-        if (daysToHarvest == null || daysToHarvest <= 0) return;
+        if (daysToHarvest == null || daysToHarvest <= 0) {
+            log.info("    daysToHarvest = null или 0, пропускаем сбор для {}", plant.getCropName());
+            return;
+        }
 
         LocalDate plantingDate = plant.getDoneAt().toLocalDate();
+        
+        long daysSincePlanting = java.time.temporal.ChronoUnit.DAYS.between(plantingDate, today);
+        log.info("    С момента посадки {} прошло {} дней, нужно {} дней", 
+                plant.getCropName(), daysSincePlanting, daysToHarvest);
+        
+        if (daysSincePlanting < daysToHarvest) {
+            log.info("    Растение {} еще не созрело (прошло {} из {} дней)", 
+                    plant.getCropName(), daysSincePlanting, daysToHarvest);
+            return;
+        }
+
         LocalDate harvestDate = plantingDate.plusDays(daysToHarvest);
         LocalDate harvestPeriodEnd = harvestDate.plusDays(HARVEST_PERIOD_DAYS);
 
         if (today.isAfter(harvestPeriodEnd)) {
+            log.info("    Период сбора урожая для {} прошел (сегодня {}, период до {})", 
+                    plant.getCropName(), today, harvestPeriodEnd);
             return;
         }
 
@@ -880,7 +925,13 @@ public class GardenTaskController {
                 ActionTypeEnum.HARVEST.getId()
             );
 
-        if (!alreadyHarvested.isEmpty()) return;
+        if (!alreadyHarvested.isEmpty()) {
+            log.info("    {} уже собран, пропускаем", plant.getCropName());
+            return;
+        }
+
+        log.info("    Генерация задач сбора урожая для {} с {} по {}", 
+                plant.getCropName(), harvestDate, harvestPeriodEnd);
 
         LocalDate currentDate = harvestDate;
         while (!currentDate.isAfter(harvestPeriodEnd) && !currentDate.isAfter(weekLater)) {
@@ -898,7 +949,8 @@ public class GardenTaskController {
                     
                     if (existingOnDate.isEmpty()) {
                         tasks.add(buildTaskMap(plant, ActionTypeEnum.HARVEST, currentDate, variety, today));
-                        log.info("      ДОБАВЛЕНА задача СБОРА УРОЖАЯ для {} на дату: {}", plant.getCropName(), currentDate);
+                        log.info("      ДОБАВЛЕНА задача СБОРА УРОЖАЯ для {} на дату: {}", 
+                                plant.getCropName(), currentDate);
                     }
                 }
             }

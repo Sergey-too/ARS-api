@@ -25,12 +25,23 @@ public class GardenController {
     
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Garden>> getUserGardens(@PathVariable Integer userId) {
-        return ResponseEntity.ok(gardenRepository.findByUserIdWithAreas(userId));
+        List<Garden> gardens = gardenRepository.findByUserId(userId);
+        for (Garden garden : gardens) {
+            List<Area> areas = gardenAreaRepository.findAreasByGardenId(garden.getId());
+            garden.setAreas(areas);
+        }
+        return ResponseEntity.ok(gardens);
     }
     
     @PostMapping
     public ResponseEntity<Garden> createGarden(@RequestBody Garden garden) {
         return ResponseEntity.ok(gardenRepository.save(garden));
+    }
+
+    @GetMapping("/{gardenId}/areas")
+    public ResponseEntity<List<Area>> getGardenAreas(@PathVariable Integer gardenId) {
+        List<Area> areas = gardenRepository.findAreasByGardenId(gardenId);
+        return ResponseEntity.ok(areas);
     }
     
     @PutMapping("/{id}")

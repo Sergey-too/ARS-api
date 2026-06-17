@@ -11,5 +11,8 @@ public interface GardenRepository extends JpaRepository<Garden, Integer> {
     @Query("SELECT g FROM Garden g LEFT JOIN FETCH g.areas WHERE g.userId = :userId")
     List<Garden> findByUserIdWithAreas(@Param("userId") Integer userId);
     
-    List<Garden> findByUserId(Integer userId);
+    List<Garden> findByUserId(Integer userId);   
+
+    @Query("SELECT a FROM Area a JOIN GardenArea ga ON a.id = ga.areaId WHERE ga.gardenId = :gardenId")
+    List<Area> findAreasByGardenId(@Param("gardenId") Integer gardenId);
 }
